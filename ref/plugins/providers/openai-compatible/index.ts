@@ -20,17 +20,17 @@ import type { StructuredFinding } from "../../../core/privacy/types.js";
  * Resolves defaults and delegates to core reviewer.
  */
 export async function runStructuredReview(
-	chunks: ReadonlyArray<TextChunk>,
-	config?: Partial<ReviewerConfig>,
+  chunks: ReadonlyArray<TextChunk>,
+  config?: Partial<ReviewerConfig>,
 ): Promise<StructuredFinding[]> {
-	const resolved: Required<ReviewerConfig> = {
-		...DEFAULT_REVIEWER_CONFIG,
-		...(config ?? {}),
-	};
+  const resolved: Required<ReviewerConfig> = {
+    ...DEFAULT_REVIEWER_CONFIG,
+    ...config,
+  };
 
-	if (!resolved.enabled) return [];
+  if (!resolved.enabled) return [];
 
-	return review(chunks, resolved);
+  return review(chunks, resolved);
 }
 
 export { review };

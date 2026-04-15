@@ -84,19 +84,19 @@ const config: PiBrainConfig = {
 
 ## Redaction Categories (v1)
 
-| Category | Examples | Placeholder |
-|----------|----------|-------------|
-| api-key | `API_KEY=abc123...` | `<API_KEY_N>` |
-| password | `password=hunter2` | `<PASSWORD_N>` |
-| email | `user@example.com` | `<EMAIL_N>` |
-| phone | `555-123-4567` | `<PHONE_N>` |
-| jwt | `eyJhbG...` | `<JWT_N>` |
-| auth-header | `Authorization: Bearer ...` | `<AUTH_HEADER_N>` |
-| ip-address | `192.168.1.100` | `<IP_ADDRESS_N>` |
-| filesystem-path | `/home/user/project/` | `<PATH_N>` |
-| url-with-creds | URLs with embedded credentials | `<CRED_URL_N>` |
-| labeled-personal | `name: "John Doe"` | `<PERSONAL_N>` |
-| provider-token | `sk-ant-...`, `ghp_...` | `<PROVIDER_TOKEN_N>` |
+| Category         | Examples                       | Placeholder          |
+| ---------------- | ------------------------------ | -------------------- |
+| api-key          | `API_KEY=abc123...`            | `<API_KEY_N>`        |
+| password         | `password=hunter2`             | `<PASSWORD_N>`       |
+| email            | `user@example.com`             | `<EMAIL_N>`          |
+| phone            | `555-123-4567`                 | `<PHONE_N>`          |
+| jwt              | `eyJhbG...`                    | `<JWT_N>`            |
+| auth-header      | `Authorization: Bearer ...`    | `<AUTH_HEADER_N>`    |
+| ip-address       | `192.168.1.100`                | `<IP_ADDRESS_N>`     |
+| filesystem-path  | `/home/user/project/`          | `<PATH_N>`           |
+| url-with-creds   | URLs with embedded credentials | `<CRED_URL_N>`       |
+| labeled-personal | `name: "John Doe"`             | `<PERSONAL_N>`       |
+| provider-token   | `sk-ant-...`, `ghp_...`        | `<PROVIDER_TOKEN_N>` |
 
 ## Non-Goals (v1)
 
@@ -109,6 +109,7 @@ const config: PiBrainConfig = {
 ## Phase Plan
 
 ### Phase 1 (Current): Pi end-to-end
+
 - All 15 core files implemented
 - Pi, Claude, Codex, OpenCode, Cursor adapters
 - Factory as typed stub
@@ -117,6 +118,7 @@ const config: PiBrainConfig = {
 - HF and HTTP upload targets
 
 ### Phase 2 (Planned)
+
 - Direct SQLite reading for Cursor (no pre-extraction needed)
 - Factory adapter (when storage format is documented)
 - Windsurf, Continue, Gemini, Trae adapters

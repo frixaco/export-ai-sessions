@@ -8,70 +8,70 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { hermesPlugin } from "../../plugins/hermes/index.js";
 
 describe("hermesPlugin", () => {
-	let tempHome: string;
-	let previousHome: string | undefined;
+  let tempHome: string;
+  let previousHome: string | undefined;
 
-	beforeEach(() => {
-		previousHome = process.env.HOME;
-		tempHome = mkdtempSync(join(tmpdir(), "pi-brain-hermes-"));
-		process.env.HOME = tempHome;
+  beforeEach(() => {
+    previousHome = process.env.HOME;
+    tempHome = mkdtempSync(join(tmpdir(), "pi-brain-hermes-"));
+    process.env.HOME = tempHome;
 
-		const hermesDir = join(tempHome, ".hermes");
-		mkdirSync(hermesDir, { recursive: true });
-		const dbPath = join(hermesDir, "state.db");
+    const hermesDir = join(tempHome, ".hermes");
+    mkdirSync(hermesDir, { recursive: true });
+    const dbPath = join(hermesDir, "state.db");
 
-		execFileSync("sqlite3", [dbPath, SCHEMA_SQL], { encoding: "utf-8" });
-		execFileSync("sqlite3", [dbPath, FIXTURE_SQL], { encoding: "utf-8" });
-	});
+    execFileSync("sqlite3", [dbPath, SCHEMA_SQL], { encoding: "utf-8" });
+    execFileSync("sqlite3", [dbPath, FIXTURE_SQL], { encoding: "utf-8" });
+  });
 
-	afterEach(() => {
-		if (previousHome === undefined) {
-			process.env.HOME = undefined;
-		} else {
-			process.env.HOME = previousHome;
-		}
-		rmSync(tempHome, { recursive: true, force: true });
-	});
+  afterEach(() => {
+    if (previousHome === undefined) {
+      process.env.HOME = undefined;
+    } else {
+      process.env.HOME = previousHome;
+    }
+    rmSync(tempHome, { recursive: true, force: true });
+  });
 
-	it("lists Hermes sessions from the local sqlite database", async () => {
-		const sessions = await hermesPlugin.listSessions();
-		expect(sessions).toEqual(["sess-1"]);
-	});
+  it("lists Hermes sessions from the local sqlite database", async () => {
+    const sessions = await hermesPlugin.listSessions();
+    expect(sessions).toEqual(["sess-1"]);
+  });
 
-	it("loads Hermes sessions and maps tool results", async () => {
-		const session = await hermesPlugin.loadSession("sess-1");
+  it("loads Hermes sessions and maps tool results", async () => {
+    const session = await hermesPlugin.loadSession("sess-1");
 
-		expect(session.id).toBe("sess-1");
-		expect(session.source).toBe("hermes");
-		expect(session.name).toBe("Fixture Hermes Session");
-		expect(session.createdAt).toBe("2026-03-03T12:13:11.000Z");
-		expect(session.messages).toEqual([
-			{
-				role: "user",
-				content: "Hello Hermes",
-				timestamp: "2026-03-03T12:13:12.000Z",
-			},
-			{
-				role: "assistant",
-				content: "Let me check that for you.",
-				timestamp: "2026-03-03T12:13:13.000Z",
-				model: "glm-5",
-			},
-			{
-				role: "tool-result",
-				content: "tool output",
-				timestamp: "2026-03-03T12:13:14.000Z",
-				toolCallId: "call-1",
-				toolName: "terminal",
-			},
-			{
-				role: "assistant",
-				content: "Done.",
-				timestamp: "2026-03-03T12:13:15.000Z",
-				model: "glm-5",
-			},
-		]);
-	});
+    expect(session.id).toBe("sess-1");
+    expect(session.source).toBe("hermes");
+    expect(session.name).toBe("Fixture Hermes Session");
+    expect(session.createdAt).toBe("2026-03-03T12:13:11.000Z");
+    expect(session.messages).toEqual([
+      {
+        role: "user",
+        content: "Hello Hermes",
+        timestamp: "2026-03-03T12:13:12.000Z",
+      },
+      {
+        role: "assistant",
+        content: "Let me check that for you.",
+        timestamp: "2026-03-03T12:13:13.000Z",
+        model: "glm-5",
+      },
+      {
+        role: "tool-result",
+        content: "tool output",
+        timestamp: "2026-03-03T12:13:14.000Z",
+        toolCallId: "call-1",
+        toolName: "terminal",
+      },
+      {
+        role: "assistant",
+        content: "Done.",
+        timestamp: "2026-03-03T12:13:15.000Z",
+        model: "glm-5",
+      },
+    ]);
+  });
 });
 
 const SCHEMA_SQL = `

@@ -12,30 +12,30 @@
 
 /** Standard response shape from an upload request. */
 export interface HttpResponse {
-	readonly status: number;
-	readonly ok: boolean;
-	readonly body: string;
+  readonly status: number;
+  readonly ok: boolean;
+  readonly body: string;
 }
 
 /**
  * POST JSON to a URL with optional extra headers.
  */
 export async function postJson(
-	url: string,
-	data: unknown,
-	headers?: Record<string, string>,
+  url: string,
+  data: unknown,
+  headers?: Record<string, string>,
 ): Promise<HttpResponse> {
-	const response = await fetch(url, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			...headers,
-		},
-		body: JSON.stringify(data),
-	});
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...headers,
+    },
+    body: JSON.stringify(data),
+  });
 
-	const body = await response.text();
-	return { status: response.status, ok: response.ok, body };
+  const body = await response.text();
+  return { status: response.status, ok: response.ok, body };
 }
 
 /**
@@ -43,31 +43,31 @@ export async function postJson(
  * Creates a proper FormData boundary and encodes the file content.
  */
 export async function uploadMultipart(
-	url: string,
-	fileName: string,
-	content: string,
-	fields?: Record<string, string>,
-	headers?: Record<string, string>,
+  url: string,
+  fileName: string,
+  content: string,
+  fields?: Record<string, string>,
+  headers?: Record<string, string>,
 ): Promise<HttpResponse> {
-	const formData = new FormData();
+  const formData = new FormData();
 
-	// Add extra fields first
-	if (fields) {
-		for (const [key, value] of Object.entries(fields)) {
-			formData.append(key, value);
-		}
-	}
+  // Add extra fields first
+  if (fields) {
+    for (const [key, value] of Object.entries(fields)) {
+      formData.append(key, value);
+    }
+  }
 
-	// Add the file
-	const blob = new Blob([content], { type: "application/octet-stream" });
-	formData.append("file", blob, fileName);
+  // Add the file
+  const blob = new Blob([content], { type: "application/octet-stream" });
+  formData.append("file", blob, fileName);
 
-	const response = await fetch(url, {
-		method: "POST",
-		headers: headers ?? {},
-		body: formData,
-	});
+  const response = await fetch(url, {
+    method: "POST",
+    headers: headers ?? {},
+    body: formData,
+  });
 
-	const body = await response.text();
-	return { status: response.status, ok: response.ok, body };
+  const body = await response.text();
+  return { status: response.status, ok: response.ok, body };
 }

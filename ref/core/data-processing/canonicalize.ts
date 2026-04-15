@@ -18,74 +18,74 @@ import type { CanonicalMessage, CanonicalSession } from "./types.js";
  * Throws if the session is structurally invalid.
  */
 export function canonicalize(raw: unknown): CanonicalSession {
-	if (!raw || typeof raw !== "object") {
-		throw new Error("canonicalize: input must be a non-null object");
-	}
+  if (!raw || typeof raw !== "object") {
+    throw new Error("canonicalize: input must be a non-null object");
+  }
 
-	const obj = raw as Record<string, unknown>;
+  const obj = raw as Record<string, unknown>;
 
-	if (typeof obj.id !== "string" || obj.id.length === 0) {
-		throw new Error("canonicalize: session must have a non-empty string id");
-	}
+  if (typeof obj.id !== "string" || obj.id.length === 0) {
+    throw new Error("canonicalize: session must have a non-empty string id");
+  }
 
-	if (typeof obj.source !== "string" || obj.source.length === 0) {
-		throw new Error("canonicalize: session must have a non-empty string source");
-	}
+  if (typeof obj.source !== "string" || obj.source.length === 0) {
+    throw new Error("canonicalize: session must have a non-empty string source");
+  }
 
-	if (!Array.isArray(obj.messages) || obj.messages.length === 0) {
-		throw new Error("canonicalize: session must have at least one message");
-	}
+  if (!Array.isArray(obj.messages) || obj.messages.length === 0) {
+    throw new Error("canonicalize: session must have at least one message");
+  }
 
-	const messages: CanonicalMessage[] = obj.messages.map(validateMessage);
+  const messages: CanonicalMessage[] = obj.messages.map(validateMessage);
 
-	// Sort by timestamp when available
-	messages.sort((a, b) => {
-		if (!a.timestamp && !b.timestamp) return 0;
-		if (!a.timestamp) return -1;
-		if (!b.timestamp) return 1;
-		return a.timestamp.localeCompare(b.timestamp);
-	});
+  // Sort by timestamp when available
+  messages.sort((a, b) => {
+    if (!a.timestamp && !b.timestamp) return 0;
+    if (!a.timestamp) return -1;
+    if (!b.timestamp) return 1;
+    return a.timestamp.localeCompare(b.timestamp);
+  });
 
-	return {
-		id: obj.id,
-		source: obj.source,
-		messages,
-		projectPath: typeof obj.projectPath === "string" ? obj.projectPath : undefined,
-		name: typeof obj.name === "string" ? obj.name : undefined,
-		createdAt: typeof obj.createdAt === "string" ? obj.createdAt : undefined,
-		metadata:
-			obj.metadata && typeof obj.metadata === "object"
-				? (obj.metadata as Record<string, unknown>)
-				: undefined,
-	};
+  return {
+    id: obj.id,
+    source: obj.source,
+    messages,
+    projectPath: typeof obj.projectPath === "string" ? obj.projectPath : undefined,
+    name: typeof obj.name === "string" ? obj.name : undefined,
+    createdAt: typeof obj.createdAt === "string" ? obj.createdAt : undefined,
+    metadata:
+      obj.metadata && typeof obj.metadata === "object"
+        ? (obj.metadata as Record<string, unknown>)
+        : undefined,
+  };
 }
 
 const VALID_ROLES = new Set(["user", "assistant", "tool-result", "system", "reasoning"]);
 
 function validateMessage(raw: unknown, index: number): CanonicalMessage {
-	if (!raw || typeof raw !== "object") {
-		throw new Error(`canonicalize: message at index ${index} must be a non-null object`);
-	}
+  if (!raw || typeof raw !== "object") {
+    throw new Error(`canonicalize: message at index ${index} must be a non-null object`);
+  }
 
-	const msg = raw as Record<string, unknown>;
+  const msg = raw as Record<string, unknown>;
 
-	if (typeof msg.role !== "string" || !VALID_ROLES.has(msg.role)) {
-		throw new Error(
-			`canonicalize: message at index ${index} has invalid role "${msg.role}". ` +
-				`Must be one of: ${[...VALID_ROLES].join(", ")}`,
-		);
-	}
+  if (typeof msg.role !== "string" || !VALID_ROLES.has(msg.role)) {
+    throw new Error(
+      `canonicalize: message at index ${index} has invalid role "${msg.role}". ` +
+        `Must be one of: ${[...VALID_ROLES].join(", ")}`,
+    );
+  }
 
-	if (typeof msg.content !== "string") {
-		throw new Error(`canonicalize: message at index ${index} must have string content`);
-	}
+  if (typeof msg.content !== "string") {
+    throw new Error(`canonicalize: message at index ${index} must have string content`);
+  }
 
-	return {
-		role: msg.role as CanonicalMessage["role"],
-		content: msg.content,
-		timestamp: typeof msg.timestamp === "string" ? msg.timestamp : undefined,
-		model: typeof msg.model === "string" ? msg.model : undefined,
-		toolName: typeof msg.toolName === "string" ? msg.toolName : undefined,
-		toolCallId: typeof msg.toolCallId === "string" ? msg.toolCallId : undefined,
-	};
+  return {
+    role: msg.role as CanonicalMessage["role"],
+    content: msg.content,
+    timestamp: typeof msg.timestamp === "string" ? msg.timestamp : undefined,
+    model: typeof msg.model === "string" ? msg.model : undefined,
+    toolName: typeof msg.toolName === "string" ? msg.toolName : undefined,
+    toolCallId: typeof msg.toolCallId === "string" ? msg.toolCallId : undefined,
+  };
 }

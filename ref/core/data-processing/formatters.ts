@@ -24,29 +24,29 @@ import type { CanonicalSession, ExportArtifact } from "./types.js";
  * @returns An ExportArtifact ready to write to disk.
  */
 export function format(
-	sessions: ReadonlyArray<CanonicalSession>,
-	formatType: ExportFormat,
+  sessions: ReadonlyArray<CanonicalSession>,
+  formatType: ExportFormat,
 ): ExportArtifact {
-	switch (formatType) {
-		case "sessions":
-			return formatSessions(sessions);
-		case "sft-jsonl":
-			return formatSftJsonl(sessions);
-		case "chatml":
-			return formatChatMl(sessions);
-		default:
-			throw new Error(`Unknown format: ${formatType}`);
-	}
+  switch (formatType) {
+    case "sessions":
+      return formatSessions(sessions);
+    case "sft-jsonl":
+      return formatSftJsonl(sessions);
+    case "chatml":
+      return formatChatMl(sessions);
+    default:
+      throw new Error(`Unknown format: ${formatType}`);
+  }
 }
 
 /** Sessions format: one full session object per JSONL line. */
 function formatSessions(sessions: ReadonlyArray<CanonicalSession>): ExportArtifact {
-	const lines = sessions.map((s) => JSON.stringify(s));
-	return {
-		format: "sessions",
-		fileName: "sessions.jsonl",
-		content: `${lines.join("\n")}\n`,
-	};
+  const lines = sessions.map((s) => JSON.stringify(s));
+  return {
+    format: "sessions",
+    fileName: "sessions.jsonl",
+    content: `${lines.join("\n")}\n`,
+  };
 }
 
 /**
@@ -54,24 +54,24 @@ function formatSessions(sessions: ReadonlyArray<CanonicalSession>): ExportArtifa
  * Compatible with most fine-tuning frameworks (Unsloth, Axolotl, etc.)
  */
 function formatSftJsonl(sessions: ReadonlyArray<CanonicalSession>): ExportArtifact {
-	const lines = sessions.map((session) => {
-		const messages = session.messages
-			.filter((m) => m.role === "user" || m.role === "assistant")
-			.map((m) => ({
-				role: m.role,
-				content: m.content,
-			}));
-		return JSON.stringify({
-			messages,
-			source: session.source,
-			id: session.id,
-		});
-	});
-	return {
-		format: "sft-jsonl",
-		fileName: "sft.jsonl",
-		content: `${lines.join("\n")}\n`,
-	};
+  const lines = sessions.map((session) => {
+    const messages = session.messages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => ({
+        role: m.role,
+        content: m.content,
+      }));
+    return JSON.stringify({
+      messages,
+      source: session.source,
+      id: session.id,
+    });
+  });
+  return {
+    format: "sft-jsonl",
+    fileName: "sft.jsonl",
+    content: `${lines.join("\n")}\n`,
+  };
 }
 
 /**
@@ -79,16 +79,16 @@ function formatSftJsonl(sessions: ReadonlyArray<CanonicalSession>): ExportArtifa
  * Output is JSONL where each line has a "text" field with ChatML markup.
  */
 function formatChatMl(sessions: ReadonlyArray<CanonicalSession>): ExportArtifact {
-	const lines = sessions.map((session) => {
-		const chatMl = session.messages
-			.filter((m) => m.role === "user" || m.role === "assistant")
-			.map((m) => `<|im_start|>${m.role}\n${m.content}<|im_end|>`)
-			.join("\n");
-		return JSON.stringify({ text: chatMl, source: session.source, id: session.id });
-	});
-	return {
-		format: "chatml",
-		fileName: "chatml.jsonl",
-		content: `${lines.join("\n")}\n`,
-	};
+  const lines = sessions.map((session) => {
+    const chatMl = session.messages
+      .filter((m) => m.role === "user" || m.role === "assistant")
+      .map((m) => `<|im_start|>${m.role}\n${m.content}<|im_end|>`)
+      .join("\n");
+    return JSON.stringify({ text: chatMl, source: session.source, id: session.id });
+  });
+  return {
+    format: "chatml",
+    fileName: "chatml.jsonl",
+    content: `${lines.join("\n")}\n`,
+  };
 }

@@ -20,18 +20,18 @@ import { upload } from "../../../core/uploads/uploader.js";
  * @returns Upload result.
  */
 export async function uploadToHuggingFace(
-	bundle: ExportBundle,
-	repo: string,
-	options?: { token?: string; visibility?: "private" | "public" },
+  bundle: ExportBundle,
+  repo: string,
+  options?: { token?: string; visibility?: "private" | "public" },
 ): Promise<UploadResult> {
-	const config: HuggingFaceUploadConfig = {
-		type: "huggingface",
-		repo,
-		token: options?.token,
-		visibility: options?.visibility ?? "private",
-	};
+  const config: HuggingFaceUploadConfig = {
+    type: "huggingface",
+    repo,
+    token: options?.token,
+    visibility: options?.visibility ?? "private",
+  };
 
-	return upload(bundle, config);
+  return upload(bundle, config);
 }
 
 export { upload };

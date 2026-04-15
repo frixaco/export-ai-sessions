@@ -27,14 +27,14 @@ const DEFAULT_JITTER_MS = 30 * 60 * 1000; // 30 minutes
 
 /** Result of anonymizing a batch of sessions. */
 export interface AnonymizeResult {
-	readonly sessions: SanitizedSession[];
-	readonly stats: {
-		readonly sessionsProcessed: number;
-		readonly idsAnonymized: number;
-		readonly pathsStripped: number;
-		readonly timestampsFuzzed: number;
-		readonly stringsStripped: number;
-	};
+  readonly sessions: SanitizedSession[];
+  readonly stats: {
+    readonly sessionsProcessed: number;
+    readonly idsAnonymized: number;
+    readonly pathsStripped: number;
+    readonly timestampsFuzzed: number;
+    readonly stringsStripped: number;
+  };
 }
 
 /**
@@ -42,104 +42,104 @@ export interface AnonymizeResult {
  * Uses a fresh random salt so each export run produces different IDs.
  */
 export function anonymize(
-	sessions: ReadonlyArray<SanitizedSession>,
-	config?: AnonymizeConfig,
+  sessions: ReadonlyArray<SanitizedSession>,
+  config?: AnonymizeConfig,
 ): AnonymizeResult {
-	const salt = randomBytes(32).toString("hex");
-	const jitterMs = config?.timestampJitterMs ?? DEFAULT_JITTER_MS;
-	const doIds = config?.anonymizeIds !== false;
-	const doTimestamps = config?.fuzzTimestamps !== false;
-	const doPaths = config?.stripPaths !== false;
+  const salt = randomBytes(32).toString("hex");
+  const jitterMs = config?.timestampJitterMs ?? DEFAULT_JITTER_MS;
+  const doIds = config?.anonymizeIds !== false;
+  const doTimestamps = config?.fuzzTimestamps !== false;
+  const doPaths = config?.stripPaths !== false;
 
-	// Collect system-identifying strings to strip
-	const stripStrings = buildStripList(config?.additionalStrips);
+  // Collect system-identifying strings to strip
+  const stripStrings = buildStripList(config?.additionalStrips);
 
-	const stats = {
-		sessionsProcessed: 0,
-		idsAnonymized: 0,
-		pathsStripped: 0,
-		timestampsFuzzed: 0,
-		stringsStripped: 0,
-	};
-	const result: SanitizedSession[] = [];
+  const stats = {
+    sessionsProcessed: 0,
+    idsAnonymized: 0,
+    pathsStripped: 0,
+    timestampsFuzzed: 0,
+    stringsStripped: 0,
+  };
+  const result: SanitizedSession[] = [];
 
-	// Generate a deterministic but random-looking jitter seed per session
-	for (const session of sessions) {
-		stats.sessionsProcessed++;
+  // Generate a deterministic but random-looking jitter seed per session
+  for (const session of sessions) {
+    stats.sessionsProcessed++;
 
-		// Anonymize session ID
-		let anonId = session.id;
-		if (doIds) {
-			anonId = hashWithSalt(session.id, salt);
-			stats.idsAnonymized++;
-		}
+    // Anonymize session ID
+    let anonId = session.id;
+    if (doIds) {
+      anonId = hashWithSalt(session.id, salt);
+      stats.idsAnonymized++;
+    }
 
-		// Strip project path
-		let projectPath = session.projectPath;
-		if (doPaths && projectPath) {
-			projectPath = anonymizePath(projectPath);
-			stats.pathsStripped++;
-		}
+    // Strip project path
+    let projectPath = session.projectPath;
+    if (doPaths && projectPath) {
+      projectPath = anonymizePath(projectPath);
+      stats.pathsStripped++;
+    }
 
-		// Fuzz session createdAt
-		let createdAt = session.createdAt;
-		if (doTimestamps && createdAt) {
-			createdAt = fuzzTimestamp(createdAt, jitterMs, salt + session.id);
-			stats.timestampsFuzzed++;
-		}
+    // Fuzz session createdAt
+    let createdAt = session.createdAt;
+    if (doTimestamps && createdAt) {
+      createdAt = fuzzTimestamp(createdAt, jitterMs, salt + session.id);
+      stats.timestampsFuzzed++;
+    }
 
-		// Process messages
-		const messages: SanitizedMessage[] = session.messages.map((msg, idx) => {
-			let content = msg.content;
+    // Process messages
+    const messages: SanitizedMessage[] = session.messages.map((msg, idx) => {
+      let content = msg.content;
 
-			// Strip identifying strings from content
-			for (const s of stripStrings) {
-				if (content.includes(s)) {
-					const count = content.split(s).length - 1;
-					stats.stringsStripped += count;
-					content = replaceAll(content, s, "<REDACTED>");
-				}
-			}
+      // Strip identifying strings from content
+      for (const s of stripStrings) {
+        if (content.includes(s)) {
+          const count = content.split(s).length - 1;
+          stats.stringsStripped += count;
+          content = replaceAll(content, s, "<REDACTED>");
+        }
+      }
 
-			// Fuzz message timestamp
-			let timestamp = msg.timestamp;
-			if (doTimestamps && timestamp) {
-				timestamp = fuzzTimestamp(timestamp, jitterMs, salt + session.id + idx);
-				stats.timestampsFuzzed++;
-			}
+      // Fuzz message timestamp
+      let timestamp = msg.timestamp;
+      if (doTimestamps && timestamp) {
+        timestamp = fuzzTimestamp(timestamp, jitterMs, salt + session.id + idx);
+        stats.timestampsFuzzed++;
+      }
 
-			return { ...msg, content, timestamp };
-		});
+      return { ...msg, content, timestamp };
+    });
 
-		// Strip name if it contains identifying info
-		let name = session.name;
-		if (name) {
-			for (const s of stripStrings) {
-				if (name.includes(s)) {
-					name = replaceAll(name, s, "<REDACTED>");
-				}
-			}
-		}
+    // Strip name if it contains identifying info
+    let name = session.name;
+    if (name) {
+      for (const s of stripStrings) {
+        if (name.includes(s)) {
+          name = replaceAll(name, s, "<REDACTED>");
+        }
+      }
+    }
 
-		// Build clean metadata (strip everything except source)
-		const metadata: Record<string, unknown> = {};
-		if (session.metadata) {
-			// Only keep safe fields
-			if (session.metadata.source) metadata.source = session.metadata.source;
-		}
+    // Build clean metadata (strip everything except source)
+    const metadata: Record<string, unknown> = {};
+    if (session.metadata) {
+      // Only keep safe fields
+      if (session.metadata.source) metadata.source = session.metadata.source;
+    }
 
-		result.push({
-			...session,
-			id: anonId,
-			name,
-			projectPath: doPaths ? projectPath : session.projectPath,
-			createdAt,
-			messages,
-			metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
-		});
-	}
+    result.push({
+      ...session,
+      id: anonId,
+      name,
+      projectPath: doPaths ? projectPath : session.projectPath,
+      createdAt,
+      messages,
+      metadata: Object.keys(metadata).length > 0 ? metadata : undefined,
+    });
+  }
 
-	return { sessions: result, stats };
+  return { sessions: result, stats };
 }
 
 /**
@@ -147,33 +147,33 @@ export function anonymize(
  * Includes OS username, hostname, home directory, and any custom additions.
  */
 function buildStripList(additional?: ReadonlyArray<string>): string[] {
-	const strips: string[] = [];
+  const strips: string[] = [];
 
-	try {
-		const user = userInfo().username;
-		if (user && user.length > 1) strips.push(user);
-	} catch {
-		// Fallback: no username available
-	}
+  try {
+    const user = userInfo().username;
+    if (user && user.length > 1) strips.push(user);
+  } catch {
+    // Fallback: no username available
+  }
 
-	try {
-		const host = hostname();
-		if (host && host.length > 1) strips.push(host);
-	} catch {
-		// Fallback
-	}
+  try {
+    const host = hostname();
+    if (host && host.length > 1) strips.push(host);
+  } catch {
+    // Fallback
+  }
 
-	if (additional) {
-		for (const s of additional) {
-			if (s.length > 1) strips.push(s);
-		}
-	}
+  if (additional) {
+    for (const s of additional) {
+      if (s.length > 1) strips.push(s);
+    }
+  }
 
-	// Sort longest first so longer matches are replaced before substrings
-	strips.sort((a, b) => b.length - a.length);
+  // Sort longest first so longer matches are replaced before substrings
+  strips.sort((a, b) => b.length - a.length);
 
-	// Deduplicate
-	return [...new Set(strips)];
+  // Deduplicate
+  return [...new Set(strips)];
 }
 
 /**
@@ -181,7 +181,7 @@ function buildStripList(additional?: ReadonlyArray<string>): string[] {
  * Output is 16 hex chars (64 bits) — enough uniqueness, not reversible.
  */
 function hashWithSalt(value: string, salt: string): string {
-	return createHash("sha256").update(`${salt}:${value}`).digest("hex").slice(0, 16);
+  return createHash("sha256").update(`${salt}:${value}`).digest("hex").slice(0, 16);
 }
 
 /**
@@ -190,21 +190,21 @@ function hashWithSalt(value: string, salt: string): string {
  * Preserves the last 2 path segments as relative context.
  */
 function anonymizePath(fullPath: string): string {
-	const segments = fullPath.split("/").filter(Boolean);
+  const segments = fullPath.split("/").filter(Boolean);
 
-	// Find the last meaningful segments (skip home/Users/username prefix)
-	let startIdx = 0;
-	for (let i = 0; i < segments.length; i++) {
-		if (segments[i] === "Users" || segments[i] === "home" || segments[i] === "root") {
-			startIdx = i + 2; // Skip "Users/username" or "home/username"
-			break;
-		}
-	}
+  // Find the last meaningful segments (skip home/Users/username prefix)
+  let startIdx = 0;
+  for (let i = 0; i < segments.length; i++) {
+    if (segments[i] === "Users" || segments[i] === "home" || segments[i] === "root") {
+      startIdx = i + 2; // Skip "Users/username" or "home/username"
+      break;
+    }
+  }
 
-	const meaningful = segments.slice(startIdx);
-	if (meaningful.length === 0) return "<project>";
-	if (meaningful.length <= 2) return meaningful.join("/");
-	return meaningful.slice(-2).join("/");
+  const meaningful = segments.slice(startIdx);
+  if (meaningful.length === 0) return "<project>";
+  if (meaningful.length <= 2) return meaningful.join("/");
+  return meaningful.slice(-2).join("/");
 }
 
 /**
@@ -213,19 +213,19 @@ function anonymizePath(fullPath: string): string {
  * gets the same fuzz (preserving relative message order).
  */
 function fuzzTimestamp(isoTimestamp: string, maxJitterMs: number, seed: string): string {
-	const date = new Date(isoTimestamp);
-	if (Number.isNaN(date.getTime())) return isoTimestamp;
+  const date = new Date(isoTimestamp);
+  if (Number.isNaN(date.getTime())) return isoTimestamp;
 
-	// Generate deterministic jitter from seed
-	const hash = createHash("sha256").update(seed).digest();
-	// Use first 4 bytes as a signed 32-bit int
-	const rawInt = hash.readInt32BE(0);
-	// Scale to [-maxJitterMs, +maxJitterMs]
-	const jitter = (rawInt / 0x7fffffff) * maxJitterMs;
+  // Generate deterministic jitter from seed
+  const hash = createHash("sha256").update(seed).digest();
+  // Use first 4 bytes as a signed 32-bit int
+  const rawInt = hash.readInt32BE(0);
+  // Scale to [-maxJitterMs, +maxJitterMs]
+  const jitter = (rawInt / 0x7fffffff) * maxJitterMs;
 
-	return new Date(date.getTime() + jitter).toISOString();
+  return new Date(date.getTime() + jitter).toISOString();
 }
 
 function replaceAll(text: string, search: string, replacement: string): string {
-	return text.split(search).join(replacement);
+  return text.split(search).join(replacement);
 }

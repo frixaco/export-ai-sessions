@@ -11,59 +11,59 @@
  */
 
 import type {
-	AnonymizeConfig,
-	ExportConfig,
-	ExportFormat,
-	PiBrainConfig,
-	PrivacyConfig,
-	RedactionCategory,
-	ReviewerConfig,
+  AnonymizeConfig,
+  ExportConfig,
+  ExportFormat,
+  PiBrainConfig,
+  PrivacyConfig,
+  RedactionCategory,
+  ReviewerConfig,
 } from "./types.js";
 
 /** All supported redaction categories in v1. */
 export const ALL_REDACTION_CATEGORIES: ReadonlyArray<RedactionCategory> = [
-	"api-key",
-	"password",
-	"email",
-	"phone",
-	"jwt",
-	"auth-header",
-	"ip-address",
-	"filesystem-path",
-	"url-with-creds",
-	"labeled-personal",
-	"provider-token",
+  "api-key",
+  "password",
+  "email",
+  "phone",
+  "jwt",
+  "auth-header",
+  "ip-address",
+  "filesystem-path",
+  "url-with-creds",
+  "labeled-personal",
+  "provider-token",
 ];
 
 /** Default privacy configuration. */
 export const DEFAULT_PRIVACY_CONFIG: Required<PrivacyConfig> = {
-	categories: ALL_REDACTION_CATEGORIES,
-	customPatterns: {},
+  categories: ALL_REDACTION_CATEGORIES,
+  customPatterns: {},
 };
 
 /** Default anonymization configuration. */
 export const DEFAULT_ANONYMIZE_CONFIG: Required<AnonymizeConfig> = {
-	timestampJitterMs: 30 * 60 * 1000,
-	additionalStrips: [],
-	anonymizeIds: true,
-	fuzzTimestamps: true,
-	stripPaths: true,
+  timestampJitterMs: 30 * 60 * 1000,
+  additionalStrips: [],
+  anonymizeIds: true,
+  fuzzTimestamps: true,
+  stripPaths: true,
 };
 
 /** Default reviewer configuration (off by default). */
 export const DEFAULT_REVIEWER_CONFIG: Required<ReviewerConfig> = {
-	enabled: false,
-	baseUrl: "https://api.openai.com/v1",
-	model: "gpt-4o-mini",
-	apiKey: "",
-	chunkTokens: 1000,
+  enabled: false,
+  baseUrl: "https://api.openai.com/v1",
+  model: "gpt-4o-mini",
+  apiKey: "",
+  chunkTokens: 1000,
 };
 
 /** Default export configuration. */
 export const DEFAULT_EXPORT_CONFIG: Required<ExportConfig> = {
-	formats: ["sessions"] as ReadonlyArray<ExportFormat>,
-	outputDir: "",
-	raw: false,
+  formats: ["sessions"] as ReadonlyArray<ExportFormat>,
+  outputDir: "",
+  raw: false,
 };
 
 /**
@@ -71,29 +71,29 @@ export const DEFAULT_EXPORT_CONFIG: Required<ExportConfig> = {
  * Does NOT fill in upload config — that must be explicitly provided.
  */
 export function resolveConfig(partial?: PiBrainConfig): {
-	privacy: Required<PrivacyConfig>;
-	anonymize: Required<AnonymizeConfig>;
-	reviewer: Required<ReviewerConfig>;
-	export: Required<ExportConfig>;
-	upload: PiBrainConfig["upload"];
+  privacy: Required<PrivacyConfig>;
+  anonymize: Required<AnonymizeConfig>;
+  reviewer: Required<ReviewerConfig>;
+  export: Required<ExportConfig>;
+  upload: PiBrainConfig["upload"];
 } {
-	return {
-		privacy: {
-			...DEFAULT_PRIVACY_CONFIG,
-			...(partial?.privacy ?? {}),
-		},
-		anonymize: {
-			...DEFAULT_ANONYMIZE_CONFIG,
-			...(partial?.anonymize ?? {}),
-		},
-		reviewer: {
-			...DEFAULT_REVIEWER_CONFIG,
-			...(partial?.reviewer ?? {}),
-		},
-		export: {
-			...DEFAULT_EXPORT_CONFIG,
-			...(partial?.export ?? {}),
-		},
-		upload: partial?.upload,
-	};
+  return {
+    privacy: {
+      ...DEFAULT_PRIVACY_CONFIG,
+      ...partial?.privacy,
+    },
+    anonymize: {
+      ...DEFAULT_ANONYMIZE_CONFIG,
+      ...partial?.anonymize,
+    },
+    reviewer: {
+      ...DEFAULT_REVIEWER_CONFIG,
+      ...partial?.reviewer,
+    },
+    export: {
+      ...DEFAULT_EXPORT_CONFIG,
+      ...partial?.export,
+    },
+    upload: partial?.upload,
+  };
 }

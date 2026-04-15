@@ -18,26 +18,26 @@ import type { PrivacyConfig } from "../configs/types.js";
 import type { CanonicalSession } from "../data-processing/types.js";
 import { detectAll } from "./detectors.js";
 import type {
-	DetectedSpan,
-	RedactionEntry,
-	RedactionReport,
-	SanitizedMessage,
-	SanitizedSession,
+  DetectedSpan,
+  RedactionEntry,
+  RedactionReport,
+  SanitizedMessage,
+  SanitizedSession,
 } from "./types.js";
 
 /** Category label used in placeholder strings (uppercased, underscored). */
 const CATEGORY_LABELS: Record<RedactionCategory, string> = {
-	"api-key": "API_KEY",
-	password: "PASSWORD",
-	email: "EMAIL",
-	phone: "PHONE",
-	jwt: "JWT",
-	"auth-header": "AUTH_HEADER",
-	"ip-address": "IP_ADDRESS",
-	"filesystem-path": "PATH",
-	"url-with-creds": "CRED_URL",
-	"labeled-personal": "PERSONAL",
-	"provider-token": "PROVIDER_TOKEN",
+  "api-key": "API_KEY",
+  password: "PASSWORD",
+  email: "EMAIL",
+  phone: "PHONE",
+  jwt: "JWT",
+  "auth-header": "AUTH_HEADER",
+  "ip-address": "IP_ADDRESS",
+  "filesystem-path": "PATH",
+  "url-with-creds": "CRED_URL",
+  "labeled-personal": "PERSONAL",
+  "provider-token": "PROVIDER_TOKEN",
 };
 
 /**
@@ -48,46 +48,46 @@ const CATEGORY_LABELS: Record<RedactionCategory, string> = {
  * @returns The sanitized session and a full redaction report.
  */
 export function sanitize(
-	session: CanonicalSession,
-	config?: PrivacyConfig,
+  session: CanonicalSession,
+  config?: PrivacyConfig,
 ): { session: SanitizedSession; report: RedactionReport } {
-	const categories = config?.categories ?? ALL_REDACTION_CATEGORIES;
-	const customPatterns = config?.customPatterns;
+  const categories = config?.categories ?? ALL_REDACTION_CATEGORIES;
+  const customPatterns = config?.customPatterns;
 
-	// Track raw value -> placeholder across the whole session for consistency
-	const valueToPlaceholder = new Map<string, string>();
-	const categoryCounts: Record<string, number> = {};
-	const allEntries: RedactionEntry[] = [];
+  // Track raw value -> placeholder across the whole session for consistency
+  const valueToPlaceholder = new Map<string, string>();
+  const categoryCounts: Record<string, number> = {};
+  const allEntries: RedactionEntry[] = [];
 
-	const sanitizedMessages: SanitizedMessage[] = [];
+  const sanitizedMessages: SanitizedMessage[] = [];
 
-	for (const message of session.messages) {
-		const spans = detectAll(message.content, categories, customPatterns);
-		const { text, entries } = replaceSpans(
-			message.content,
-			spans,
-			valueToPlaceholder,
-			categoryCounts,
-		);
-		allEntries.push(...entries);
-		sanitizedMessages.push({
-			...message,
-			content: text,
-		});
-	}
+  for (const message of session.messages) {
+    const spans = detectAll(message.content, categories, customPatterns);
+    const { text, entries } = replaceSpans(
+      message.content,
+      spans,
+      valueToPlaceholder,
+      categoryCounts,
+    );
+    allEntries.push(...entries);
+    sanitizedMessages.push({
+      ...message,
+      content: text,
+    });
+  }
 
-	const report: RedactionReport = {
-		totalRedactions: allEntries.length,
-		categoryCounts: { ...categoryCounts },
-		entries: allEntries,
-	};
+  const report: RedactionReport = {
+    totalRedactions: allEntries.length,
+    categoryCounts: { ...categoryCounts },
+    entries: allEntries,
+  };
 
-	const sanitized: SanitizedSession = {
-		...session,
-		messages: sanitizedMessages,
-	};
+  const sanitized: SanitizedSession = {
+    ...session,
+    messages: sanitizedMessages,
+  };
 
-	return { session: sanitized, report };
+  return { session: sanitized, report };
 }
 
 /**
@@ -95,37 +95,37 @@ export function sanitize(
  * Builds replacements right-to-left to preserve offsets.
  */
 function replaceSpans(
-	text: string,
-	spans: ReadonlyArray<DetectedSpan>,
-	valueToPlaceholder: Map<string, string>,
-	categoryCounts: Record<string, number>,
+  text: string,
+  spans: ReadonlyArray<DetectedSpan>,
+  valueToPlaceholder: Map<string, string>,
+  categoryCounts: Record<string, number>,
 ): { text: string; entries: RedactionEntry[] } {
-	if (spans.length === 0) return { text, entries: [] };
+  if (spans.length === 0) return { text, entries: [] };
 
-	const entries: RedactionEntry[] = [];
-	let result = text;
+  const entries: RedactionEntry[] = [];
+  let result = text;
 
-	// Process right-to-left so earlier offsets remain valid
-	for (let i = spans.length - 1; i >= 0; i--) {
-		const span = spans[i];
-		const placeholder = getOrCreatePlaceholder(
-			span.rawValue,
-			span.category,
-			valueToPlaceholder,
-			categoryCounts,
-		);
+  // Process right-to-left so earlier offsets remain valid
+  for (let i = spans.length - 1; i >= 0; i--) {
+    const span = spans[i];
+    const placeholder = getOrCreatePlaceholder(
+      span.rawValue,
+      span.category,
+      valueToPlaceholder,
+      categoryCounts,
+    );
 
-		result = result.slice(0, span.start) + placeholder + result.slice(span.end);
+    result = result.slice(0, span.start) + placeholder + result.slice(span.end);
 
-		entries.unshift({
-			placeholder,
-			category: span.category,
-			start: span.start,
-			end: span.end,
-		});
-	}
+    entries.unshift({
+      placeholder,
+      category: span.category,
+      start: span.start,
+      end: span.end,
+    });
+  }
 
-	return { text: result, entries };
+  return { text: result, entries };
 }
 
 /**
@@ -134,19 +134,19 @@ function replaceSpans(
  * within a session.
  */
 function getOrCreatePlaceholder(
-	rawValue: string,
-	category: RedactionCategory,
-	valueToPlaceholder: Map<string, string>,
-	categoryCounts: Record<string, number>,
+  rawValue: string,
+  category: RedactionCategory,
+  valueToPlaceholder: Map<string, string>,
+  categoryCounts: Record<string, number>,
 ): string {
-	const existing = valueToPlaceholder.get(rawValue);
-	if (existing) return existing;
+  const existing = valueToPlaceholder.get(rawValue);
+  if (existing) return existing;
 
-	const label = CATEGORY_LABELS[category];
-	const count = (categoryCounts[category] ?? 0) + 1;
-	categoryCounts[category] = count;
+  const label = CATEGORY_LABELS[category];
+  const count = (categoryCounts[category] ?? 0) + 1;
+  categoryCounts[category] = count;
 
-	const placeholder = `<${label}_${count}>`;
-	valueToPlaceholder.set(rawValue, placeholder);
-	return placeholder;
+  const placeholder = `<${label}_${count}>`;
+  valueToPlaceholder.set(rawValue, placeholder);
+  return placeholder;
 }

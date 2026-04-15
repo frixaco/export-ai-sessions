@@ -78,34 +78,34 @@ See [docs/design.md](docs/design.md) for the full architecture.
 
 ## Core File Budget (15 files)
 
-| File | Purpose |
-|------|---------|
-| `core/index.ts` | Public API surface |
-| `core/configs/types.ts` | Configuration types |
-| `core/configs/defaults.ts` | Default values |
-| `core/privacy/types.ts` | Privacy/redaction types |
-| `core/privacy/detectors.ts` | Pattern-based secret detection |
-| `core/privacy/redactor.ts` | Placeholder replacement engine |
-| `core/privacy/reviewer.ts` | Optional AI-powered review |
-| `core/data-processing/types.ts` | Canonical data types |
+| File                                   | Purpose                          |
+| -------------------------------------- | -------------------------------- |
+| `core/index.ts`                        | Public API surface               |
+| `core/configs/types.ts`                | Configuration types              |
+| `core/configs/defaults.ts`             | Default values                   |
+| `core/privacy/types.ts`                | Privacy/redaction types          |
+| `core/privacy/detectors.ts`            | Pattern-based secret detection   |
+| `core/privacy/redactor.ts`             | Placeholder replacement engine   |
+| `core/privacy/reviewer.ts`             | Optional AI-powered review       |
+| `core/data-processing/types.ts`        | Canonical data types             |
 | `core/data-processing/canonicalize.ts` | Session validation/normalization |
-| `core/data-processing/chunker.ts` | Deterministic text chunking |
-| `core/data-processing/formatters.ts` | Training format converters |
-| `core/data-processing/bundle.ts` | Export bundle assembly |
-| `core/uploads/types.ts` | Upload target types |
-| `core/uploads/http-client.ts` | HTTP upload utilities |
-| `core/uploads/uploader.ts` | Upload routing |
+| `core/data-processing/chunker.ts`      | Deterministic text chunking      |
+| `core/data-processing/formatters.ts`   | Training format converters       |
+| `core/data-processing/bundle.ts`       | Export bundle assembly           |
+| `core/uploads/types.ts`                | Upload target types              |
+| `core/uploads/http-client.ts`          | HTTP upload utilities            |
+| `core/uploads/uploader.ts`             | Upload routing                   |
 
 ## Source Plugins
 
-| Plugin | Status | Storage Location |
-|--------|--------|-----------------|
-| Pi | Complete | `~/.pi/agent/sessions/` |
-| Claude Code | Complete | `~/.claude/projects/` |
-| Codex | Complete | `~/.codex/sessions/` |
-| OpenCode | Complete | `~/.local/share/opencode/` or `~/Library/Application Support/opencode/` (`opencode.db` and legacy `storage/` layouts) |
-| Cursor | Complete | Reads pre-extracted JSONL from `~/extracted_data/` |
-| Factory | Stub | Not yet supported (awaiting format documentation) |
+| Plugin      | Status   | Storage Location                                                                                                      |
+| ----------- | -------- | --------------------------------------------------------------------------------------------------------------------- |
+| Pi          | Complete | `~/.pi/agent/sessions/`                                                                                               |
+| Claude Code | Complete | `~/.claude/projects/`                                                                                                 |
+| Codex       | Complete | `~/.codex/sessions/`                                                                                                  |
+| OpenCode    | Complete | `~/.local/share/opencode/` or `~/Library/Application Support/opencode/` (`opencode.db` and legacy `storage/` layouts) |
+| Cursor      | Complete | Reads pre-extracted JSONL from `~/extracted_data/`                                                                    |
+| Factory     | Stub     | Not yet supported (awaiting format documentation)                                                                     |
 
 ## Privacy Guarantees
 

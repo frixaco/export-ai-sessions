@@ -43,90 +43,90 @@ If no residual entities are found, respond with an empty array: []`;
  * @returns Array of structured findings across all chunks.
  */
 export async function review(
-	chunks: ReadonlyArray<TextChunk>,
-	config: Required<ReviewerConfig>,
+  chunks: ReadonlyArray<TextChunk>,
+  config: Required<ReviewerConfig>,
 ): Promise<StructuredFinding[]> {
-	if (!config.enabled) return [];
+  if (!config.enabled) return [];
 
-	const apiKey = config.apiKey || process.env.PI_BRAIN_REVIEWER_API_KEY;
-	if (!apiKey) {
-		throw new Error(
-			"Structured review is enabled but no API key provided. " +
-				"Set reviewer.apiKey in config or PI_BRAIN_REVIEWER_API_KEY env var.",
-		);
-	}
+  const apiKey = config.apiKey || process.env.PI_BRAIN_REVIEWER_API_KEY;
+  if (!apiKey) {
+    throw new Error(
+      "Structured review is enabled but no API key provided. " +
+        "Set reviewer.apiKey in config or PI_BRAIN_REVIEWER_API_KEY env var.",
+    );
+  }
 
-	const findings: StructuredFinding[] = [];
+  const findings: StructuredFinding[] = [];
 
-	for (const chunk of chunks) {
-		const chunkFindings = await reviewSingleChunk(chunk, config, apiKey);
-		findings.push(...chunkFindings);
-	}
+  for (const chunk of chunks) {
+    const chunkFindings = await reviewSingleChunk(chunk, config, apiKey);
+    findings.push(...chunkFindings);
+  }
 
-	return findings;
+  return findings;
 }
 
 /** Send a single chunk for review and parse the JSON response. */
 async function reviewSingleChunk(
-	chunk: TextChunk,
-	config: Required<ReviewerConfig>,
-	apiKey: string,
+  chunk: TextChunk,
+  config: Required<ReviewerConfig>,
+  apiKey: string,
 ): Promise<StructuredFinding[]> {
-	const url = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
+  const url = `${config.baseUrl.replace(/\/$/, "")}/chat/completions`;
 
-	const body = {
-		model: config.model,
-		messages: [
-			{ role: "system" as const, content: REVIEW_SYSTEM_PROMPT },
-			{
-				role: "user" as const,
-				content: `Review this sanitized text chunk (index ${chunk.index}) for residual PII:\n\n${chunk.text}`,
-			},
-		],
-		temperature: 0,
-		response_format: { type: "json_object" as const },
-	};
+  const body = {
+    model: config.model,
+    messages: [
+      { role: "system" as const, content: REVIEW_SYSTEM_PROMPT },
+      {
+        role: "user" as const,
+        content: `Review this sanitized text chunk (index ${chunk.index}) for residual PII:\n\n${chunk.text}`,
+      },
+    ],
+    temperature: 0,
+    response_format: { type: "json_object" as const },
+  };
 
-	const response = await fetch(url, {
-		method: "POST",
-		headers: {
-			"Content-Type": "application/json",
-			Authorization: `Bearer ${apiKey}`,
-		},
-		body: JSON.stringify(body),
-	});
+  const response = await fetch(url, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify(body),
+  });
 
-	if (!response.ok) {
-		const errorText = await response.text().catch(() => "unknown error");
-		throw new Error(`Reviewer API error ${response.status}: ${errorText}`);
-	}
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "unknown error");
+    throw new Error(`Reviewer API error ${response.status}: ${errorText}`);
+  }
 
-	const data = (await response.json()) as {
-		choices: Array<{ message: { content: string } }>;
-	};
-	const content = data.choices?.[0]?.message?.content;
-	if (!content) return [];
+  const data = (await response.json()) as {
+    choices: Array<{ message: { content: string } }>;
+  };
+  const content = data.choices?.[0]?.message?.content;
+  if (!content) return [];
 
-	try {
-		const parsed = JSON.parse(content);
-		const rawFindings = Array.isArray(parsed) ? parsed : (parsed.findings ?? []);
-		return rawFindings
-			.filter(
-				(f: any) =>
-					typeof f.start === "number" &&
-					typeof f.end === "number" &&
-					typeof f.entityType === "string",
-			)
-			.map((f: any) => ({
-				chunkIndex: chunk.index,
-				start: f.start,
-				end: f.end,
-				entityType: f.entityType,
-				suggestedPlaceholder: f.suggestedPlaceholder ?? `<${f.entityType.toUpperCase()}_1>`,
-				confidence: typeof f.confidence === "number" ? f.confidence : 0.5,
-			}));
-	} catch {
-		// Malformed JSON from reviewer — skip silently
-		return [];
-	}
+  try {
+    const parsed = JSON.parse(content);
+    const rawFindings = Array.isArray(parsed) ? parsed : (parsed.findings ?? []);
+    return rawFindings
+      .filter(
+        (f: any) =>
+          typeof f.start === "number" &&
+          typeof f.end === "number" &&
+          typeof f.entityType === "string",
+      )
+      .map((f: any) => ({
+        chunkIndex: chunk.index,
+        start: f.start,
+        end: f.end,
+        entityType: f.entityType,
+        suggestedPlaceholder: f.suggestedPlaceholder ?? `<${f.entityType.toUpperCase()}_1>`,
+        confidence: typeof f.confidence === "number" ? f.confidence : 0.5,
+      }));
+  } catch {
+    // Malformed JSON from reviewer — skip silently
+    return [];
+  }
 }

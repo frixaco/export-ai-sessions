@@ -27,28 +27,28 @@ import type { ExportArtifact, ExportBundle } from "./types.js";
  * @returns A complete ExportBundle with manifest hash.
  */
 export function createBundle(
-	sessions: ReadonlyArray<CanonicalSession>,
-	config: Required<ExportConfig>,
+  sessions: ReadonlyArray<CanonicalSession>,
+  config: Required<ExportConfig>,
 ): ExportBundle {
-	const formats = config.formats as ReadonlyArray<ExportFormat>;
-	const artifacts: ExportArtifact[] = formats.map((f) => format(sessions, f));
+  const formats = config.formats as ReadonlyArray<ExportFormat>;
+  const artifacts: ExportArtifact[] = formats.map((f) => format(sessions, f));
 
-	const hashInput = artifacts.map((a) => a.content).join("");
-	const manifestHash = createHash("sha256").update(hashInput).digest("hex");
+  const hashInput = artifacts.map((a) => a.content).join("");
+  const manifestHash = createHash("sha256").update(hashInput).digest("hex");
 
-	const messageCount = sessions.reduce((sum, s) => sum + s.messages.length, 0);
+  const messageCount = sessions.reduce((sum, s) => sum + s.messages.length, 0);
 
-	return {
-		artifacts,
-		manifestHash,
-		createdAt: new Date().toISOString(),
-		metadata: {
-			sessionCount: sessions.length,
-			messageCount,
-			formats: formats as unknown as ReadonlyArray<string>,
-			source: sessions[0]?.source ?? "unknown",
-		},
-	};
+  return {
+    artifacts,
+    manifestHash,
+    createdAt: new Date().toISOString(),
+    metadata: {
+      sessionCount: sessions.length,
+      messageCount,
+      formats: formats as unknown as ReadonlyArray<string>,
+      source: sessions[0]?.source ?? "unknown",
+    },
+  };
 }
 
 /**
@@ -58,18 +58,18 @@ export function createBundle(
  * @param outputDir - Directory to write artifacts into.
  */
 export async function writeBundle(bundle: ExportBundle, outputDir: string): Promise<void> {
-	await mkdir(outputDir, { recursive: true });
+  await mkdir(outputDir, { recursive: true });
 
-	for (const artifact of bundle.artifacts) {
-		await writeFile(join(outputDir, artifact.fileName), artifact.content, "utf-8");
-	}
+  for (const artifact of bundle.artifacts) {
+    await writeFile(join(outputDir, artifact.fileName), artifact.content, "utf-8");
+  }
 
-	const manifest = {
-		hash: bundle.manifestHash,
-		createdAt: bundle.createdAt,
-		metadata: bundle.metadata,
-		files: bundle.artifacts.map((a) => a.fileName),
-	};
+  const manifest = {
+    hash: bundle.manifestHash,
+    createdAt: bundle.createdAt,
+    metadata: bundle.metadata,
+    files: bundle.artifacts.map((a) => a.fileName),
+  };
 
-	await writeFile(join(outputDir, "manifest.json"), JSON.stringify(manifest, null, 2), "utf-8");
+  await writeFile(join(outputDir, "manifest.json"), JSON.stringify(manifest, null, 2), "utf-8");
 }

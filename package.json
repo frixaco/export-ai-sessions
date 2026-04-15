@@ -5,8 +5,11 @@
   "keywords": [],
   "license": "ISC",
   "author": "",
-  "main": "index.js",
+  "type": "module",
+  "main": "./dist/index.js",
   "scripts": {
+    "check": "pnpm lint && pnpm fmt-check && pnpm typecheck && pnpm test",
+    "test": "vitest run",
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint",
     "lint-fix": "oxlint --fix",
@@ -17,8 +20,10 @@
     "@typescript/native-preview": "7.0.0-dev.20260414.1"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "oxfmt": "^0.45.0",
-    "oxlint": "^1.60.0"
+    "oxlint": "^1.60.0",
+    "vitest": "^4.1.4"
   },
   "packageManager": "pnpm@10.33.0"
 }

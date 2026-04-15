@@ -1,0 +1,232 @@
+{
+  "version": 1,
+  "source": "factory",
+  "source_schema_version": "2",
+  "session": {
+    "id": "factory_fixture",
+    "parent_session_id": "factory_parent",
+    "title": "Factory fixture",
+    "cwd": "/tmp/factory",
+    "provider_version": "2",
+    "metadata": {
+      "source_file": "/Users/frixa/Documents/export-ai-sessions/tests/fixtures/factory/source.jsonl",
+      "owner": "frixa",
+      "session_title": "Factory fixture short"
+    }
+  },
+  "items": [
+    {
+      "id": "cmp_1",
+      "timestamp": "2026-04-03T20:48:14.092Z",
+      "kind": "compaction",
+      "blocks": [
+        {
+          "type": "compaction",
+          "mode": "summary",
+          "summary_text": "summary text",
+          "summary_kind": "llm_summary",
+          "summary_tokens": 12,
+          "removed_count": 4,
+          "metadata": {
+            "raw": {
+              "type": "compaction_state",
+              "id": "cmp_1",
+              "timestamp": "2026-04-03T20:48:14.092Z",
+              "summaryText": "summary text",
+              "summaryTokens": 12,
+              "summaryKind": "llm_summary",
+              "removedCount": 4,
+              "systemInfo": {
+                "osName": "darwin"
+              }
+            },
+            "systemInfo": {
+              "osName": "darwin"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "compaction_state",
+          "id": "cmp_1",
+          "timestamp": "2026-04-03T20:48:14.092Z",
+          "summaryText": "summary text",
+          "summaryTokens": 12,
+          "summaryKind": "llm_summary",
+          "removedCount": 4,
+          "systemInfo": {
+            "osName": "darwin"
+          }
+        }
+      }
+    },
+    {
+      "id": "todo_1",
+      "timestamp": "2026-04-03T20:48:15.000Z",
+      "kind": "meta",
+      "blocks": [
+        {
+          "type": "raw",
+          "raw": {
+            "type": "todo_state",
+            "id": "todo_1",
+            "timestamp": "2026-04-03T20:48:15.000Z",
+            "todos": [
+              {
+                "text": "finish migration"
+              }
+            ]
+          },
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "todo_state",
+          "id": "todo_1",
+          "timestamp": "2026-04-03T20:48:15.000Z",
+          "todos": [
+            {
+              "text": "finish migration"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fac_1",
+      "parent_id": "cmp_1",
+      "compaction_ref_id": "cmp_1",
+      "timestamp": "2026-04-03T20:48:16.000Z",
+      "kind": "reasoning",
+      "role": "assistant",
+      "model": "gpt-5",
+      "blocks": [
+        {
+          "type": "thinking",
+          "text": "Need to inspect setup",
+          "signature": "sig_factory",
+          "metadata": {
+            "raw": {
+              "type": "thinking",
+              "thinking": "Need to inspect setup",
+              "signature": "sig_factory"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "message",
+          "id": "fac_1",
+          "parentId": "cmp_1",
+          "compactionSummaryId": "cmp_1",
+          "timestamp": "2026-04-03T20:48:16.000Z",
+          "role": "assistant",
+          "model": "gpt-5",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "Need to inspect setup",
+              "signature": "sig_factory"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fac_2",
+      "parent_id": "fac_1",
+      "compaction_ref_id": "cmp_1",
+      "timestamp": "2026-04-03T20:48:17.000Z",
+      "kind": "tool_call",
+      "role": "assistant",
+      "model": "gpt-5",
+      "blocks": [
+        {
+          "type": "tool_call",
+          "call_id": "tool_factory_1",
+          "tool_name": "read_file",
+          "arguments": {
+            "path": "app/globals.css"
+          },
+          "metadata": {
+            "raw": {
+              "type": "tool_use",
+              "id": "tool_factory_1",
+              "name": "read_file",
+              "input": {
+                "path": "app/globals.css"
+              }
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "message",
+          "id": "fac_2",
+          "parentId": "fac_1",
+          "compactionSummaryId": "cmp_1",
+          "timestamp": "2026-04-03T20:48:17.000Z",
+          "role": "assistant",
+          "model": "gpt-5",
+          "content": [
+            {
+              "type": "tool_use",
+              "id": "tool_factory_1",
+              "name": "read_file",
+              "input": {
+                "path": "app/globals.css"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "fac_3",
+      "parent_id": "fac_2",
+      "compaction_ref_id": "cmp_1",
+      "timestamp": "2026-04-03T20:48:18.000Z",
+      "kind": "tool_result",
+      "role": "tool",
+      "blocks": [
+        {
+          "type": "tool_result",
+          "call_id": "tool_factory_1",
+          "tool_name": null,
+          "is_error": false,
+          "content": "body { color: red; }",
+          "metadata": {
+            "raw": {
+              "type": "tool_result",
+              "tool_use_id": "tool_factory_1",
+              "content": "body { color: red; }",
+              "is_error": false
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "message",
+          "id": "fac_3",
+          "parentId": "fac_2",
+          "compactionSummaryId": "cmp_1",
+          "timestamp": "2026-04-03T20:48:18.000Z",
+          "role": "user",
+          "content": [
+            {
+              "type": "tool_result",
+              "tool_use_id": "tool_factory_1",
+              "content": "body { color: red; }",
+              "is_error": false
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

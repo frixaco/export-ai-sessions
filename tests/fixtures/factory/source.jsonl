@@ -1,0 +1,6 @@
+{"type":"session_start","id":"factory_fixture","title":"Factory fixture","sessionTitle":"Factory fixture short","owner":"frixa","parent":"factory_parent","version":2,"cwd":"/tmp/factory","isSessionTitleManuallySet":false}
+{"type":"compaction_state","id":"cmp_1","timestamp":"2026-04-03T20:48:14.092Z","summaryText":"summary text","summaryTokens":12,"summaryKind":"llm_summary","removedCount":4,"systemInfo":{"osName":"darwin"}}
+{"type":"todo_state","id":"todo_1","timestamp":"2026-04-03T20:48:15.000Z","todos":[{"text":"finish migration"}]}
+{"type":"message","id":"fac_1","parentId":"cmp_1","compactionSummaryId":"cmp_1","timestamp":"2026-04-03T20:48:16.000Z","role":"assistant","model":"gpt-5","content":[{"type":"thinking","thinking":"Need to inspect setup","signature":"sig_factory"}]}
+{"type":"message","id":"fac_2","parentId":"fac_1","compactionSummaryId":"cmp_1","timestamp":"2026-04-03T20:48:17.000Z","role":"assistant","model":"gpt-5","content":[{"type":"tool_use","id":"tool_factory_1","name":"read_file","input":{"path":"app/globals.css"}}]}
+{"type":"message","id":"fac_3","parentId":"fac_2","compactionSummaryId":"cmp_1","timestamp":"2026-04-03T20:48:18.000Z","role":"user","content":[{"type":"tool_result","tool_use_id":"tool_factory_1","content":"body { color: red; }","is_error":false}]}

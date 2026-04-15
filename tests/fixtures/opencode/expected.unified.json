@@ -1,0 +1,172 @@
+{
+  "version": 1,
+  "source": "opencode",
+  "source_schema_version": "1.2.3",
+  "session": {
+    "id": "ses_fixture",
+    "title": "Fixture OpenCode Session",
+    "cwd": "/tmp/opencode",
+    "created_at": "2024-01-01T00:00:00.000Z",
+    "updated_at": "2024-01-01T00:01:00.000Z",
+    "provider_version": "1.2.3",
+    "metadata": {
+      "slug": "fixture",
+      "project_id": "proj_fixture",
+      "summary": {
+        "files": 1
+      },
+      "source_file": "/Users/frixa/Documents/export-ai-sessions/tests/fixtures/opencode/source.json"
+    }
+  },
+  "items": [
+    {
+      "id": "msg_user_1",
+      "timestamp": "2024-01-01T00:00:01.000Z",
+      "kind": "message",
+      "role": "user",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "hello from opencode",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "hello from opencode"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "id": "msg_user_1",
+          "role": "user",
+          "sessionID": "ses_fixture",
+          "time": {
+            "created": 1704067201000
+          }
+        }
+      }
+    },
+    {
+      "id": "msg_assistant_1",
+      "parent_id": "msg_user_1",
+      "timestamp": "2024-01-01T00:00:02.000Z",
+      "kind": "message",
+      "role": "assistant",
+      "model": "claude-opus",
+      "provider": "anthropic",
+      "agent": "build",
+      "usage": {
+        "cost": 0.1,
+        "tokens": {
+          "input": 10,
+          "output": 20
+        }
+      },
+      "blocks": [
+        {
+          "type": "step",
+          "name": "step",
+          "status": "start",
+          "metadata": {
+            "raw": {
+              "type": "step-start"
+            }
+          }
+        },
+        {
+          "type": "tool_call",
+          "call_id": "call_open_1",
+          "tool_name": "read",
+          "arguments": {
+            "path": "/tmp/file.ts"
+          },
+          "metadata": {
+            "raw": {
+              "type": "tool",
+              "id": "call_open_1",
+              "name": "read",
+              "input": {
+                "path": "/tmp/file.ts"
+              }
+            }
+          }
+        },
+        {
+          "type": "text",
+          "text": "done",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "done"
+            }
+          }
+        },
+        {
+          "type": "step",
+          "name": "step",
+          "status": "finish",
+          "metadata": {
+            "raw": {
+              "type": "step-finish"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "id": "msg_assistant_1",
+          "role": "assistant",
+          "sessionID": "ses_fixture",
+          "parentID": "msg_user_1",
+          "providerID": "anthropic",
+          "modelID": "claude-opus",
+          "agent": "build",
+          "time": {
+            "created": 1704067202000
+          },
+          "tokens": {
+            "input": 10,
+            "output": 20
+          },
+          "cost": 0.1
+        }
+      }
+    },
+    {
+      "id": "msg_compaction_1:compaction:1",
+      "parent_id": "msg_assistant_1",
+      "timestamp": "2024-01-01T00:00:03.000Z",
+      "kind": "compaction",
+      "role": "assistant",
+      "model": "claude-opus",
+      "provider": "anthropic",
+      "blocks": [
+        {
+          "type": "compaction",
+          "mode": "marker",
+          "metadata": {
+            "raw": {
+              "type": "compaction",
+              "auto": false
+            },
+            "auto": false
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "id": "msg_compaction_1",
+          "role": "assistant",
+          "sessionID": "ses_fixture",
+          "parentID": "msg_assistant_1",
+          "providerID": "anthropic",
+          "modelID": "claude-opus",
+          "time": {
+            "created": 1704067203000
+          }
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,161 @@
+{
+  "version": 1,
+  "source": "pi",
+  "source_schema_version": "3",
+  "session": {
+    "id": "pi_fixture",
+    "cwd": "/tmp/pi",
+    "created_at": "2026-01-30T16:00:00.000Z",
+    "provider_version": "3",
+    "metadata": {
+      "source_file": "/Users/frixa/Documents/export-ai-sessions/tests/fixtures/pi/source.jsonl"
+    }
+  },
+  "items": [
+    {
+      "id": "u1",
+      "parent_id": null,
+      "timestamp": "2026-01-30T16:00:01.000Z",
+      "kind": "message",
+      "role": "user",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "hello pi",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "hello pi"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "hello pi"
+            }
+          ],
+          "timestamp": 1760000000000
+        }
+      }
+    },
+    {
+      "id": "a1",
+      "parent_id": "u1",
+      "timestamp": "2026-01-30T16:00:02.000Z",
+      "kind": "message",
+      "role": "assistant",
+      "model": "claude-opus",
+      "provider": "anthropic",
+      "usage": {
+        "totalTokens": 12
+      },
+      "blocks": [
+        {
+          "type": "thinking",
+          "text": "check files",
+          "signature": "sig_pi",
+          "metadata": {
+            "raw": {
+              "type": "thinking",
+              "thinking": "check files",
+              "thinkingSignature": "sig_pi"
+            }
+          }
+        },
+        {
+          "type": "tool_call",
+          "call_id": "tool_pi_1",
+          "tool_name": "bash",
+          "arguments": {
+            "command": "ls"
+          },
+          "metadata": {
+            "raw": {
+              "type": "toolCall",
+              "id": "tool_pi_1",
+              "name": "bash",
+              "arguments": {
+                "command": "ls"
+              }
+            }
+          }
+        },
+        {
+          "type": "text",
+          "text": "done",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "done"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "thinking",
+              "thinking": "check files",
+              "thinkingSignature": "sig_pi"
+            },
+            {
+              "type": "toolCall",
+              "id": "tool_pi_1",
+              "name": "bash",
+              "arguments": {
+                "command": "ls"
+              }
+            },
+            {
+              "type": "text",
+              "text": "done"
+            }
+          ],
+          "provider": "anthropic",
+          "model": "claude-opus",
+          "usage": {
+            "totalTokens": 12
+          }
+        }
+      }
+    },
+    {
+      "id": "c1",
+      "parent_id": "a1",
+      "timestamp": "2026-01-30T16:00:03.000Z",
+      "kind": "compaction",
+      "blocks": [
+        {
+          "type": "compaction",
+          "mode": "summary",
+          "summary_text": "summary of earlier turns",
+          "metadata": {
+            "raw": {
+              "type": "compaction",
+              "id": "c1",
+              "parentId": "a1",
+              "timestamp": "2026-01-30T16:00:03.000Z",
+              "summary": "summary of earlier turns"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "compaction",
+          "id": "c1",
+          "parentId": "a1",
+          "timestamp": "2026-01-30T16:00:03.000Z",
+          "summary": "summary of earlier turns"
+        }
+      }
+    }
+  ]
+}

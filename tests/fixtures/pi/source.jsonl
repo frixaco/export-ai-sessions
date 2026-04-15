@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"pi_fixture","timestamp":"2026-01-30T16:00:00.000Z","cwd":"/tmp/pi"}
+{"type":"message","id":"u1","parentId":null,"timestamp":"2026-01-30T16:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"hello pi"}],"timestamp":1760000000000}}
+{"type":"message","id":"a1","parentId":"u1","timestamp":"2026-01-30T16:00:02.000Z","message":{"role":"assistant","content":[{"type":"thinking","thinking":"check files","thinkingSignature":"sig_pi"},{"type":"toolCall","id":"tool_pi_1","name":"bash","arguments":{"command":"ls"}},{"type":"text","text":"done"}],"provider":"anthropic","model":"claude-opus","usage":{"totalTokens":12}}}
+{"type":"compaction","id":"c1","parentId":"a1","timestamp":"2026-01-30T16:00:03.000Z","summary":"summary of earlier turns"}

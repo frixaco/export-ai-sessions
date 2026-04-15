@@ -1,0 +1,93 @@
+{
+  "info": {
+    "id": "ses_fixture",
+    "slug": "fixture",
+    "projectID": "proj_fixture",
+    "directory": "/tmp/opencode",
+    "title": "Fixture OpenCode Session",
+    "version": "1.2.3",
+    "summary": {
+      "files": 1
+    },
+    "time": {
+      "created": 1704067200000,
+      "updated": 1704067260000
+    }
+  },
+  "messages": [
+    {
+      "info": {
+        "id": "msg_user_1",
+        "role": "user",
+        "sessionID": "ses_fixture",
+        "time": {
+          "created": 1704067201000
+        }
+      },
+      "parts": [
+        {
+          "type": "text",
+          "text": "hello from opencode"
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_assistant_1",
+        "role": "assistant",
+        "sessionID": "ses_fixture",
+        "parentID": "msg_user_1",
+        "providerID": "anthropic",
+        "modelID": "claude-opus",
+        "agent": "build",
+        "time": {
+          "created": 1704067202000
+        },
+        "tokens": {
+          "input": 10,
+          "output": 20
+        },
+        "cost": 0.1
+      },
+      "parts": [
+        {
+          "type": "step-start"
+        },
+        {
+          "type": "tool",
+          "id": "call_open_1",
+          "name": "read",
+          "input": {
+            "path": "/tmp/file.ts"
+          }
+        },
+        {
+          "type": "text",
+          "text": "done"
+        },
+        {
+          "type": "step-finish"
+        }
+      ]
+    },
+    {
+      "info": {
+        "id": "msg_compaction_1",
+        "role": "assistant",
+        "sessionID": "ses_fixture",
+        "parentID": "msg_assistant_1",
+        "providerID": "anthropic",
+        "modelID": "claude-opus",
+        "time": {
+          "created": 1704067203000
+        }
+      },
+      "parts": [
+        {
+          "type": "compaction",
+          "auto": false
+        }
+      ]
+    }
+  ]
+}

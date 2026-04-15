@@ -215,7 +215,6 @@ export const opencodeConverter = {
           ...(data.info.slug !== undefined ? { slug: data.info.slug } : {}),
           ...(data.info.projectID !== undefined ? { project_id: data.info.projectID } : {}),
           ...(data.info.summary !== undefined ? { summary: data.info.summary } : {}),
-          ...(payload.filePath !== undefined ? { source_file: payload.filePath } : {}),
         },
       },
       items,

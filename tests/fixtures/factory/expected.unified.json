@@ -9,7 +9,6 @@
     "cwd": "/tmp/factory",
     "provider_version": "2",
     "metadata": {
-      "source_file": "/Users/frixa/Documents/export-ai-sessions/tests/fixtures/factory/source.jsonl",
       "owner": "frixa",
       "session_title": "Factory fixture short"
     }

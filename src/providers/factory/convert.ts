@@ -12,6 +12,7 @@ import {
   toolCallBlock,
   toolResultBlock,
 } from "../shared/blocks.js";
+import { classifyItemKindFromBlocks } from "../shared/classify-item-kind.js";
 import { fallbackId } from "../shared/ids.js";
 import { parseJsonLines } from "../shared/jsonl.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
@@ -116,18 +117,7 @@ function itemFromFactoryEntry(entry: FactoryEntry, index: number): UnifiedSessio
 
   const role = asString(entry.role);
   const blocks = blocksFromFactoryContent(entry.content);
-  const firstBlock = blocks[0];
-  let kind = "message";
-  let normalizedRole = role;
-
-  if (firstBlock?.type === "thinking") {
-    kind = "reasoning";
-  } else if (firstBlock?.type === "tool_call") {
-    kind = "tool_call";
-  } else if (firstBlock?.type === "tool_result") {
-    kind = "tool_result";
-    normalizedRole = "tool";
-  }
+  const classification = classifyItemKindFromBlocks(blocks, role);
 
   return {
     id: entry.id ?? fallbackId("factory-message", index),
@@ -136,8 +126,8 @@ function itemFromFactoryEntry(entry: FactoryEntry, index: number): UnifiedSessio
       ? { compaction_ref_id: entry.compactionSummaryId }
       : {}),
     ...(timestamp !== null ? { timestamp } : {}),
-    kind,
-    ...(normalizedRole !== null ? { role: normalizedRole } : {}),
+    kind: classification.kind,
+    ...(classification.role !== null ? { role: classification.role } : {}),
     ...(asString(entry.model) !== null ? { model: asString(entry.model) } : {}),
     blocks: blocks.length > 0 ? blocks : [rawBlock(entry)],
     metadata: { raw: entry },
@@ -178,7 +168,6 @@ export const factoryConverter = {
           ? { provider_version: String(sessionStart.version) }
           : {}),
         metadata: {
-          ...(payload.filePath !== undefined ? { source_file: payload.filePath } : {}),
           ...(asString(sessionStart?.owner) !== null
             ? { owner: asString(sessionStart?.owner) }
             : {}),

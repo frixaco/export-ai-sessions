@@ -13,6 +13,7 @@ import {
   toolCallBlock,
   toolResultBlock,
 } from "../shared/blocks.js";
+import { classifyItemKindFromBlocks } from "../shared/classify-item-kind.js";
 import { fallbackId } from "../shared/ids.js";
 import { parseJsonLines } from "../shared/jsonl.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
@@ -181,12 +182,14 @@ function itemFromPiEntry(entry: PiEntry, index: number): UnifiedSessionItem | nu
     };
   }
 
+  const classification = classifyItemKindFromBlocks(blocks, role);
+
   return {
     id: entry.id ?? fallbackId("pi-message", index),
     ...(entry.parentId !== undefined ? { parent_id: entry.parentId } : {}),
     ...(timestamp !== null ? { timestamp } : {}),
-    kind: "message",
-    ...(role !== null ? { role } : {}),
+    kind: classification.kind,
+    ...(classification.role !== null ? { role: classification.role } : {}),
     ...(model !== null ? { model } : {}),
     ...(provider !== null ? { provider } : {}),
     ...(usage !== null ? { usage } : {}),
@@ -211,6 +214,7 @@ export const piConverter = {
     const items = branch
       .map((entry, index) => itemFromPiEntry(entry, index))
       .filter((item): item is UnifiedSessionItem => item !== null);
+    const sessionMetadata = linkageBroken ? { branch_linkage_broken: true } : {};
 
     return {
       version: UNIFIED_SESSION_VERSION,
@@ -227,10 +231,7 @@ export const piConverter = {
         ...(typeof header?.version === "number"
           ? { provider_version: String(header.version) }
           : {}),
-        metadata: {
-          ...(payload.filePath !== undefined ? { source_file: payload.filePath } : {}),
-          ...(linkageBroken ? { branch_linkage_broken: true } : {}),
-        },
+        metadata: sessionMetadata,
       },
       items,
     };

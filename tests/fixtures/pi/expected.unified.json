@@ -7,9 +7,7 @@
     "cwd": "/tmp/pi",
     "created_at": "2026-01-30T16:00:00.000Z",
     "provider_version": "3",
-    "metadata": {
-      "source_file": "/Users/frixa/Documents/export-ai-sessions/tests/fixtures/pi/source.jsonl"
-    }
+    "metadata": {}
   },
   "items": [
     {

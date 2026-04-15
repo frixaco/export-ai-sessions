@@ -453,7 +453,6 @@ export const codexConverter = {
           ...(asString(sessionMeta.originator) !== null
             ? { originator: asString(sessionMeta.originator) }
             : {}),
-          ...(payload.filePath !== undefined ? { source_file: payload.filePath } : {}),
         },
       },
       items,

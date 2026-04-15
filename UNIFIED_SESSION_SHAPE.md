@@ -359,13 +359,14 @@ All other fields depend on `type`.
 }
 ```
 
-Use this for persisted compaction records.
+Use this for persisted compaction records and deterministic continuation-summary records that semantically replace earlier context.
 
 Guidance:
 
 - `mode = "replacement"` when the provider stores replaced prior content
 - `mode = "summary"` when the provider stores only a summary of removed context
 - `mode = "marker"` when the provider stores only a light compaction marker
+- `mode = "summary"` also fits providers that persist compaction indirectly as a synthetic continuation-summary prompt rather than a dedicated compaction event
 - `replacement_items` is mainly for providers like Codex that retain compacted prior content inline
 - provider-specific fields with no good common slot should remain in `metadata`
 
@@ -466,7 +467,7 @@ Compaction guidance:
 
 ### Claude
 
-Map each `user` or `assistant` entry to one `item`.
+Map Claude's ordered event stream directly to `items[]`.
 
 Suggested mappings:
 
@@ -474,13 +475,27 @@ Suggested mappings:
 - `thinking` -> `thinking`
 - `tool_use` -> `tool_call`
 - `tool_result` -> `tool_result`
+- `system` -> `context`
+- `permission-mode` -> `meta`
+- `attachment` -> `meta`
+- `file-history-snapshot` -> `meta`
+- `last-prompt` -> `meta`
 
-Skip or preserve non-transcript entries like `progress` and `file-history-snapshot` as `meta` only if they matter to your use case.
+For Claude entries that mix multiple block types in one message, classify by block composition:
+
+- all `thinking` -> `reasoning`
+- all `tool_call` -> `tool_call`
+- all `tool_result` -> `tool_result`
+- mixed blocks -> `message`
 
 Compaction guidance:
 
-- no explicit persisted compaction representation is currently known from local session files
-- if Claude later adds one, map it to `item.kind = "compaction"`
+- Claude may persist compaction indirectly rather than as a dedicated top-level compaction event
+- preserve `/compact` command wrappers and local command stdout as `meta`
+- when Claude writes a synthetic continuation-summary user entry, normalize it to `item.kind = "compaction"`
+- map that synthetic summary entry to a `compaction` block with `mode = "summary"` and `summary_text`
+- preserve the original Claude payload in `metadata.raw`
+- if Claude later adds an explicit compaction event, map that to `item.kind = "compaction"` too
 
 ### Factory
 
@@ -513,6 +528,8 @@ Compaction guidance:
 - Preserve source IDs when available
 - Preserve parent-child relationships when available
 - Prefer standalone `item.kind = "compaction"` records over burying compaction inside unrelated items
+- Keep runtime conversion context such as the input file path outside the unified session payload
+- When a provider message mixes block types, do not classify by the first block alone
 - Preserve original provider payloads in `metadata.raw` only if needed for debugging or diffing
 - Keep normalization deterministic
 

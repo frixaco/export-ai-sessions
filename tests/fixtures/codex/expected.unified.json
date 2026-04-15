@@ -9,8 +9,7 @@
     "provider_version": "0.1.0",
     "metadata": {
       "model_provider": "openai",
-      "originator": "codex_cli_rs",
-      "source_file": "/Users/frixa/Documents/export-ai-sessions/tests/fixtures/codex/source.jsonl"
+      "originator": "codex_cli_rs"
     }
   },
   "items": [

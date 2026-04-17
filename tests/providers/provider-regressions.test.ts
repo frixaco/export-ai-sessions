@@ -35,6 +35,10 @@ describe("provider regressions", () => {
     expect(mixedMessage.blocks.map((block) => block.type)).toEqual(["thinking", "text"]);
     expect(toolCall.blocks.map((block) => block.type)).toEqual(["tool_call"]);
     expect(toolResult.blocks.map((block) => block.type)).toEqual(["tool_result"]);
+    expect(toolResult.blocks[0]).toMatchObject({
+      type: "tool_result",
+      tool_name: "read_file",
+    });
   });
 
   it("maps Pi tool results and preserves image blocks", () => {
@@ -66,17 +70,32 @@ describe("provider regressions", () => {
     expect(session.items.map((item) => item.id)).toEqual(["root", "child", "orphan"]);
   });
 
-  it("preserves Claude compact-boundary context and inferred compaction", () => {
+  it("preserves Claude system text and compact-boundary compaction markers", () => {
     const session = convertSessionFile(
       "claude",
       resolve(root, "tests/fixtures/claude/source.jsonl"),
     );
+    const localSystem = session.items.find((item) => item.id === "claude_system_local_1");
     const compactBoundary = session.items.find((item) => item.id === "claude_compact_boundary_1");
     const compaction = session.items.find((item) => item.id === "claude_compaction_summary_1");
 
-    expect(compactBoundary?.kind).toBe("context");
-    expect(compactBoundary?.role).toBe("system");
+    expect(localSystem?.kind).toBe("context");
+    expect(localSystem?.role).toBe("system");
+    expect(localSystem?.blocks[0]).toMatchObject({
+      type: "text",
+      text: "<local-command-stdout>Total cost: $0.1357</local-command-stdout>",
+    });
+    expect(compactBoundary?.kind).toBe("compaction");
     expect(compactBoundary?.parent_id).toBe("claude_system_local_1");
+    expect(compactBoundary?.blocks.map((block) => block.type)).toEqual(["compaction", "text"]);
+    expect(compactBoundary?.blocks[0]).toMatchObject({
+      type: "compaction",
+      mode: "marker",
+    });
+    expect(compactBoundary?.blocks[1]).toMatchObject({
+      type: "text",
+      text: "Conversation compacted",
+    });
     expect(compaction?.kind).toBe("compaction");
     expect(compaction?.blocks[0]).toMatchObject({
       type: "compaction",
@@ -120,9 +139,24 @@ describe("provider regressions", () => {
     const compactBoundary = session.items.find(
       (item) => item.id === "claude_compact_boundary_inline",
     );
+    const localSystem = session.items.find((item) => item.id === "claude_before_compact");
     const caveat = session.items.find((item) => item.id === "claude_caveat_inline");
 
+    expect(localSystem?.blocks[0]).toMatchObject({
+      type: "text",
+      text: "<local-command-stdout>Total cost: $0.1357</local-command-stdout>",
+    });
+    expect(compactBoundary?.kind).toBe("compaction");
     expect(compactBoundary?.parent_id).toBe("claude_before_compact");
+    expect(compactBoundary?.blocks.map((block) => block.type)).toEqual(["compaction", "text"]);
+    expect(compactBoundary?.blocks[0]).toMatchObject({
+      type: "compaction",
+      mode: "marker",
+    });
+    expect(compactBoundary?.blocks[1]).toMatchObject({
+      type: "text",
+      text: "Conversation compacted",
+    });
     expect(caveat?.kind).toBe("meta");
     expect(caveat?.role).toBe("user");
     expect(caveat?.blocks[0]).toMatchObject({

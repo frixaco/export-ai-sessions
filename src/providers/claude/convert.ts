@@ -147,6 +147,20 @@ function claudeParentId(entry: ClaudeEntry): string | null | undefined {
   return entry.parentUuid;
 }
 
+function claudeContent(value: unknown): unknown {
+  if (typeof value === "string" || Array.isArray(value)) {
+    return value;
+  }
+  return undefined;
+}
+
+function claudeMessageContent(
+  entry: ClaudeEntry,
+  message: Record<string, unknown> | null,
+): unknown {
+  return claudeContent(message?.content) ?? claudeContent(entry.content) ?? message ?? entry;
+}
+
 function itemFromClaudeEntry(entry: ClaudeEntry, index: number): UnifiedSessionItem {
   const message =
     typeof entry.message === "object" && entry.message !== null && !Array.isArray(entry.message)
@@ -196,7 +210,24 @@ function itemFromClaudeEntry(entry: ClaudeEntry, index: number): UnifiedSessionI
   }
 
   if (entry.type === "system") {
-    const blocks = normalizeClaudeBlocks(message?.content ?? message ?? entry);
+    if (entry.subtype === "compact_boundary") {
+      return {
+        id: baseId,
+        ...(parentId !== undefined ? { parent_id: parentId } : {}),
+        ...(timestamp !== null ? { timestamp } : {}),
+        kind: "compaction",
+        blocks: [
+          compactionBlock({
+            mode: "marker",
+            metadata: { raw: entry },
+          }),
+          ...(typeof entry.content === "string" ? [textBlock(entry.content, { raw: entry })] : []),
+        ],
+        metadata: { raw: entry },
+      };
+    }
+
+    const blocks = normalizeClaudeBlocks(claudeMessageContent(entry, message));
     return {
       id: baseId,
       ...(parentId !== undefined ? { parent_id: parentId } : {}),

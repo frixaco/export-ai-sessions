@@ -363,20 +363,8 @@
       "role": "system",
       "blocks": [
         {
-          "type": "raw",
-          "raw": {
-            "type": "system",
-            "uuid": "claude_system_local_1",
-            "parentUuid": "claude_tool_result_1",
-            "cwd": "/tmp/claude",
-            "sessionId": "claude_fixture_v3",
-            "version": "2.1.109",
-            "gitBranch": "main",
-            "timestamp": "2026-04-15T21:32:10.947Z",
-            "subtype": "local_command",
-            "content": "<local-command-stdout>Total cost: $0.1357</local-command-stdout>",
-            "level": "info"
-          },
+          "type": "text",
+          "text": "<local-command-stdout>Total cost: $0.1357</local-command-stdout>",
           "metadata": {}
         }
       ],
@@ -430,32 +418,59 @@
       "id": "claude_compact_boundary_1",
       "parent_id": "claude_system_local_1",
       "timestamp": "2026-04-15T21:33:13.563Z",
-      "kind": "context",
-      "role": "system",
+      "kind": "compaction",
       "blocks": [
         {
-          "type": "raw",
-          "raw": {
-            "type": "system",
-            "uuid": "claude_compact_boundary_1",
-            "parentUuid": null,
-            "logicalParentUuid": "claude_system_local_1",
-            "cwd": "/tmp/claude",
-            "sessionId": "claude_fixture_v3",
-            "version": "2.1.109",
-            "gitBranch": "main",
-            "timestamp": "2026-04-15T21:33:13.563Z",
-            "subtype": "compact_boundary",
-            "content": "Conversation compacted",
-            "level": "info",
-            "compactMetadata": {
-              "trigger": "manual",
-              "preTokens": 36066,
-              "postTokens": 8452,
-              "durationMs": 36258
+          "type": "compaction",
+          "mode": "marker",
+          "metadata": {
+            "raw": {
+              "type": "system",
+              "uuid": "claude_compact_boundary_1",
+              "parentUuid": null,
+              "logicalParentUuid": "claude_system_local_1",
+              "cwd": "/tmp/claude",
+              "sessionId": "claude_fixture_v3",
+              "version": "2.1.109",
+              "gitBranch": "main",
+              "timestamp": "2026-04-15T21:33:13.563Z",
+              "subtype": "compact_boundary",
+              "content": "Conversation compacted",
+              "level": "info",
+              "compactMetadata": {
+                "trigger": "manual",
+                "preTokens": 36066,
+                "postTokens": 8452,
+                "durationMs": 36258
+              }
             }
-          },
-          "metadata": {}
+          }
+        },
+        {
+          "type": "text",
+          "text": "Conversation compacted",
+          "metadata": {
+            "raw": {
+              "type": "system",
+              "uuid": "claude_compact_boundary_1",
+              "parentUuid": null,
+              "logicalParentUuid": "claude_system_local_1",
+              "cwd": "/tmp/claude",
+              "sessionId": "claude_fixture_v3",
+              "version": "2.1.109",
+              "gitBranch": "main",
+              "timestamp": "2026-04-15T21:33:13.563Z",
+              "subtype": "compact_boundary",
+              "content": "Conversation compacted",
+              "level": "info",
+              "compactMetadata": {
+                "trigger": "manual",
+                "preTokens": 36066,
+                "postTokens": 8452,
+                "durationMs": 36258
+              }
+            }
+          }
         }
       ],
       "metadata": {

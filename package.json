@@ -5,10 +5,21 @@
   "keywords": [],
   "license": "ISC",
   "author": "",
+  "bin": {
+    "export-session": "./dist/cli/export-session.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "type": "module",
   "main": "./dist/index.js",
   "scripts": {
+    "build": "pnpm exec tsgo -p tsconfig.build.json",
     "check": "pnpm lint && pnpm fmt-check && pnpm typecheck && pnpm test",
+    "export-session": "pnpm build && node dist/cli/export-session.js",
+    "prepare": "pnpm build",
+    "prepack": "pnpm build",
     "test": "vitest run",
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint",

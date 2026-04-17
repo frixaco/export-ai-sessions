@@ -23,7 +23,48 @@ interface ParsedFactoryPayload {
   readonly filePath?: string;
 }
 
-function blocksFromFactoryContent(content: unknown): UnifiedBlock[] {
+function collectFactoryToolNames(entries: FactoryEntry[]): Map<string, string> {
+  const toolNamesByCallId = new Map<string, string>();
+
+  for (const entry of entries) {
+    if (entry.type !== "message") {
+      continue;
+    }
+
+    const message =
+      typeof entry.message === "object" && entry.message !== null && !Array.isArray(entry.message)
+        ? (entry.message as Record<string, unknown>)
+        : entry;
+    const content = message.content;
+    if (!Array.isArray(content)) {
+      continue;
+    }
+
+    for (const item of content) {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        continue;
+      }
+
+      const record = item as Record<string, unknown>;
+      const callId =
+        typeof record.id === "string"
+          ? record.id
+          : typeof record.tool_use_id === "string"
+            ? record.tool_use_id
+            : null;
+      if (record.type === "tool_use" && callId !== null && typeof record.name === "string") {
+        toolNamesByCallId.set(callId, record.name);
+      }
+    }
+  }
+
+  return toolNamesByCallId;
+}
+
+function blocksFromFactoryContent(
+  content: unknown,
+  toolNamesByCallId: ReadonlyMap<string, string>,
+): UnifiedBlock[] {
   if (typeof content === "string") {
     return [textBlock(content)];
   }
@@ -73,10 +114,11 @@ function blocksFromFactoryContent(content: unknown): UnifiedBlock[] {
           }),
         ];
       case "tool_result":
+        const toolUseId = typeof record.tool_use_id === "string" ? record.tool_use_id : null;
         return [
           toolResultBlock({
-            call_id: typeof record.tool_use_id === "string" ? record.tool_use_id : null,
-            tool_name: null,
+            call_id: toolUseId,
+            tool_name: toolUseId !== null ? (toolNamesByCallId.get(toolUseId) ?? null) : null,
             is_error: record.is_error === true,
             content: typeof record.content === "string" ? record.content : null,
             metadata: { raw: record },
@@ -88,7 +130,11 @@ function blocksFromFactoryContent(content: unknown): UnifiedBlock[] {
   });
 }
 
-function itemFromFactoryEntry(entry: FactoryEntry, index: number): UnifiedSessionItem | null {
+function itemFromFactoryEntry(
+  entry: FactoryEntry,
+  index: number,
+  toolNamesByCallId: ReadonlyMap<string, string>,
+): UnifiedSessionItem | null {
   const timestamp = normalizeTimestamp(entry.timestamp);
 
   if (entry.type === "compaction_state") {
@@ -125,7 +171,7 @@ function itemFromFactoryEntry(entry: FactoryEntry, index: number): UnifiedSessio
       ? (entry.message as Record<string, unknown>)
       : entry;
   const role = typeof message.role === "string" ? message.role : null;
-  const blocks = blocksFromFactoryContent(message.content);
+  const blocks = blocksFromFactoryContent(message.content, toolNamesByCallId);
   const classification = classifyItemKindFromBlocks(blocks, role);
 
   return {
@@ -155,9 +201,10 @@ export const factoryConverter = {
 
   normalize(payload: ParsedFactoryPayload): UnifiedSession {
     const sessionStart = payload.entries.find((entry) => entry.type === "session_start");
+    const toolNamesByCallId = collectFactoryToolNames(payload.entries);
     const items = payload.entries
       .filter((entry) => entry.type !== "session_start")
-      .map((entry, index) => itemFromFactoryEntry(entry, index))
+      .map((entry, index) => itemFromFactoryEntry(entry, index, toolNamesByCallId))
       .filter((item): item is UnifiedSessionItem => item !== null);
 
     return {

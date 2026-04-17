@@ -213,7 +213,7 @@
         {
           "type": "tool_result",
           "call_id": "tool_factory_1",
-          "tool_name": null,
+          "tool_name": "read_file",
           "is_error": false,
           "content": "body { color: red; }",
           "metadata": {

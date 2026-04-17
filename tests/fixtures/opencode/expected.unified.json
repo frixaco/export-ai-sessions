@@ -13,7 +13,7 @@
       "slug": "fixture",
       "project_id": "proj_fixture",
       "summary": {
-        "files": 1
+        "files": 2
       }
     }
   },
@@ -92,6 +92,33 @@
           }
         },
         {
+          "type": "file_ref",
+          "path": "/tmp/file.ts",
+          "url": null,
+          "mime": "text/typescript",
+          "label": "file.ts",
+          "metadata": {
+            "raw": {
+              "type": "file",
+              "path": "/tmp/file.ts",
+              "label": "file.ts",
+              "mimeType": "text/typescript"
+            }
+          }
+        },
+        {
+          "type": "patch_ref",
+          "hash": "patch_123",
+          "files": ["/tmp/file.ts"],
+          "metadata": {
+            "raw": {
+              "type": "patch",
+              "hash": "patch_123",
+              "files": ["/tmp/file.ts"]
+            }
+          }
+        },
+        {
           "type": "text",
           "text": "done",
           "metadata": {
@@ -133,8 +160,47 @@
       }
     },
     {
-      "id": "msg_compaction_1:compaction:1",
+      "id": "msg_tool_result_1",
       "parent_id": "msg_assistant_1",
+      "timestamp": "2024-01-01T00:00:02.500Z",
+      "kind": "tool_result",
+      "role": "tool",
+      "model": "claude-opus",
+      "provider": "anthropic",
+      "blocks": [
+        {
+          "type": "tool_result",
+          "call_id": "call_open_1",
+          "tool_name": "read",
+          "is_error": false,
+          "content": "export const value = 1;",
+          "metadata": {
+            "raw": {
+              "type": "tool",
+              "id": "call_open_1",
+              "name": "read",
+              "output": "export const value = 1;"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "id": "msg_tool_result_1",
+          "role": "toolResult",
+          "sessionID": "ses_fixture",
+          "parentID": "msg_assistant_1",
+          "providerID": "anthropic",
+          "modelID": "claude-opus",
+          "time": {
+            "created": 1704067202500
+          }
+        }
+      }
+    },
+    {
+      "id": "msg_compaction_1:compaction:1",
+      "parent_id": "msg_tool_result_1",
       "timestamp": "2024-01-01T00:00:03.000Z",
       "kind": "compaction",
       "role": "assistant",
@@ -158,7 +224,42 @@
           "id": "msg_compaction_1",
           "role": "assistant",
           "sessionID": "ses_fixture",
-          "parentID": "msg_assistant_1",
+          "parentID": "msg_tool_result_1",
+          "providerID": "anthropic",
+          "modelID": "claude-opus",
+          "time": {
+            "created": 1704067203000
+          }
+        }
+      }
+    },
+    {
+      "id": "msg_compaction_1:compaction:2",
+      "parent_id": "msg_tool_result_1",
+      "timestamp": "2024-01-01T00:00:03.000Z",
+      "kind": "compaction",
+      "role": "assistant",
+      "model": "claude-opus",
+      "provider": "anthropic",
+      "blocks": [
+        {
+          "type": "compaction",
+          "mode": "marker",
+          "metadata": {
+            "raw": {
+              "type": "compaction",
+              "auto": true
+            },
+            "auto": true
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "id": "msg_compaction_1",
+          "role": "assistant",
+          "sessionID": "ses_fixture",
+          "parentID": "msg_tool_result_1",
           "providerID": "anthropic",
           "modelID": "claude-opus",
           "time": {

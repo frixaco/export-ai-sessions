@@ -3,7 +3,7 @@
   "source": "claude",
   "source_schema_version": "2.1.109",
   "session": {
-    "id": "claude_fixture_v2",
+    "id": "claude_fixture_v3",
     "cwd": "/tmp/claude",
     "created_at": "2026-04-15T21:31:33.381Z",
     "provider_version": "2.1.109",
@@ -21,7 +21,7 @@
           "raw": {
             "type": "permission-mode",
             "permissionMode": "default",
-            "sessionId": "claude_fixture_v2"
+            "sessionId": "claude_fixture_v3"
           },
           "metadata": {}
         }
@@ -30,14 +30,86 @@
         "raw": {
           "type": "permission-mode",
           "permissionMode": "default",
-          "sessionId": "claude_fixture_v2"
+          "sessionId": "claude_fixture_v3"
         }
       }
     },
     {
-      "id": "claude_attach_1",
+      "id": "claude_attach_hook_1",
       "parent_id": null,
       "timestamp": "2026-04-15T21:31:33.381Z",
+      "kind": "meta",
+      "blocks": [
+        {
+          "type": "raw",
+          "raw": {
+            "type": "hook_non_blocking_error",
+            "hookName": "SessionStart:startup",
+            "stderr": "missing binary",
+            "stdout": "",
+            "exitCode": 127
+          },
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "attachment",
+          "uuid": "claude_attach_hook_1",
+          "parentUuid": null,
+          "timestamp": "2026-04-15T21:31:33.381Z",
+          "sessionId": "claude_fixture_v3",
+          "cwd": "/tmp/claude",
+          "version": "2.1.109",
+          "gitBranch": "main",
+          "attachment": {
+            "type": "hook_non_blocking_error",
+            "hookName": "SessionStart:startup",
+            "stderr": "missing binary",
+            "stdout": "",
+            "exitCode": 127
+          }
+        }
+      }
+    },
+    {
+      "id": "claude_attach_deferred_1",
+      "parent_id": "claude_attach_hook_1",
+      "timestamp": "2026-04-15T21:31:34.000Z",
+      "kind": "meta",
+      "blocks": [
+        {
+          "type": "raw",
+          "raw": {
+            "type": "deferred_tools_delta",
+            "addedNames": ["WebSearch"],
+            "removedNames": []
+          },
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "attachment",
+          "uuid": "claude_attach_deferred_1",
+          "parentUuid": "claude_attach_hook_1",
+          "timestamp": "2026-04-15T21:31:34.000Z",
+          "sessionId": "claude_fixture_v3",
+          "cwd": "/tmp/claude",
+          "version": "2.1.109",
+          "gitBranch": "main",
+          "attachment": {
+            "type": "deferred_tools_delta",
+            "addedNames": ["WebSearch"],
+            "removedNames": []
+          }
+        }
+      }
+    },
+    {
+      "id": "claude_attach_file_1",
+      "parent_id": "claude_attach_deferred_1",
+      "timestamp": "2026-04-15T21:31:34.100Z",
       "kind": "meta",
       "blocks": [
         {
@@ -62,10 +134,10 @@
       "metadata": {
         "raw": {
           "type": "attachment",
-          "uuid": "claude_attach_1",
-          "parentUuid": null,
-          "timestamp": "2026-04-15T21:31:33.381Z",
-          "sessionId": "claude_fixture_v2",
+          "uuid": "claude_attach_file_1",
+          "parentUuid": "claude_attach_deferred_1",
+          "timestamp": "2026-04-15T21:31:34.100Z",
+          "sessionId": "claude_fixture_v3",
           "cwd": "/tmp/claude",
           "version": "2.1.109",
           "gitBranch": "main",
@@ -84,8 +156,40 @@
       }
     },
     {
+      "id": "claude_attach_task_1",
+      "parent_id": "claude_attach_file_1",
+      "timestamp": "2026-04-15T21:31:34.200Z",
+      "kind": "meta",
+      "blocks": [
+        {
+          "type": "raw",
+          "raw": {
+            "type": "task_reminder",
+            "text": "Remember to review the schema."
+          },
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "attachment",
+          "uuid": "claude_attach_task_1",
+          "parentUuid": "claude_attach_file_1",
+          "timestamp": "2026-04-15T21:31:34.200Z",
+          "sessionId": "claude_fixture_v3",
+          "cwd": "/tmp/claude",
+          "version": "2.1.109",
+          "gitBranch": "main",
+          "attachment": {
+            "type": "task_reminder",
+            "text": "Remember to review the schema."
+          }
+        }
+      }
+    },
+    {
       "id": "claude_user_1",
-      "parent_id": "claude_attach_1",
+      "parent_id": "claude_attach_task_1",
       "timestamp": "2026-04-15T21:31:40.242Z",
       "kind": "message",
       "role": "user",
@@ -100,9 +204,9 @@
         "raw": {
           "type": "user",
           "uuid": "claude_user_1",
-          "parentUuid": "claude_attach_1",
+          "parentUuid": "claude_attach_task_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
           "timestamp": "2026-04-15T21:31:40.242Z",
@@ -150,6 +254,16 @@
               }
             }
           }
+        },
+        {
+          "type": "text",
+          "text": "I am checking the schema now.",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "I am checking the schema now."
+            }
+          }
         }
       ],
       "metadata": {
@@ -158,7 +272,7 @@
           "uuid": "claude_assistant_mix_1",
           "parentUuid": "claude_user_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
           "timestamp": "2026-04-15T21:31:42.447Z",
@@ -178,6 +292,10 @@
                 "input": {
                   "file_path": "/tmp/claude/UNIFIED_SESSION_SHAPE.md"
                 }
+              },
+              {
+                "type": "text",
+                "text": "I am checking the schema now."
               }
             ]
           }
@@ -213,7 +331,7 @@
           "uuid": "claude_tool_result_1",
           "parentUuid": "claude_assistant_mix_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
           "timestamp": "2026-04-15T21:31:42.514Z",
@@ -227,44 +345,146 @@
                 "is_error": false
               }
             ]
+          },
+          "toolUseResult": {
+            "type": "file_unchanged",
+            "file": {
+              "filePath": "/tmp/claude/UNIFIED_SESSION_SHAPE.md"
+            }
           }
         }
       }
     },
     {
-      "id": "claude_system_1",
+      "id": "claude_system_local_1",
       "parent_id": "claude_tool_result_1",
-      "timestamp": "2026-04-15T21:32:00.000Z",
+      "timestamp": "2026-04-15T21:32:10.947Z",
       "kind": "context",
       "role": "system",
       "blocks": [
         {
-          "type": "text",
-          "text": "Context window nearly full.",
+          "type": "raw",
+          "raw": {
+            "type": "system",
+            "uuid": "claude_system_local_1",
+            "parentUuid": "claude_tool_result_1",
+            "cwd": "/tmp/claude",
+            "sessionId": "claude_fixture_v3",
+            "version": "2.1.109",
+            "gitBranch": "main",
+            "timestamp": "2026-04-15T21:32:10.947Z",
+            "subtype": "local_command",
+            "content": "<local-command-stdout>Total cost: $0.1357</local-command-stdout>",
+            "level": "info"
+          },
           "metadata": {}
         }
       ],
       "metadata": {
         "raw": {
           "type": "system",
-          "uuid": "claude_system_1",
+          "uuid": "claude_system_local_1",
           "parentUuid": "claude_tool_result_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
-          "timestamp": "2026-04-15T21:32:00.000Z",
-          "message": {
-            "role": "system",
-            "content": "Context window nearly full."
+          "timestamp": "2026-04-15T21:32:10.947Z",
+          "subtype": "local_command",
+          "content": "<local-command-stdout>Total cost: $0.1357</local-command-stdout>",
+          "level": "info"
+        }
+      }
+    },
+    {
+      "id": "claude-file-history-snapshot:10",
+      "kind": "meta",
+      "blocks": [
+        {
+          "type": "raw",
+          "raw": {
+            "type": "file-history-snapshot",
+            "messageId": "claude_post_prompt_1",
+            "snapshot": {
+              "messageId": "claude_post_prompt_1",
+              "timestamp": "2026-04-15T21:33:13.566Z"
+            },
+            "isSnapshotUpdate": false
+          },
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "file-history-snapshot",
+          "messageId": "claude_post_prompt_1",
+          "snapshot": {
+            "messageId": "claude_post_prompt_1",
+            "timestamp": "2026-04-15T21:33:13.566Z"
+          },
+          "isSnapshotUpdate": false
+        }
+      }
+    },
+    {
+      "id": "claude_compact_boundary_1",
+      "parent_id": "claude_system_local_1",
+      "timestamp": "2026-04-15T21:33:13.563Z",
+      "kind": "context",
+      "role": "system",
+      "blocks": [
+        {
+          "type": "raw",
+          "raw": {
+            "type": "system",
+            "uuid": "claude_compact_boundary_1",
+            "parentUuid": null,
+            "logicalParentUuid": "claude_system_local_1",
+            "cwd": "/tmp/claude",
+            "sessionId": "claude_fixture_v3",
+            "version": "2.1.109",
+            "gitBranch": "main",
+            "timestamp": "2026-04-15T21:33:13.563Z",
+            "subtype": "compact_boundary",
+            "content": "Conversation compacted",
+            "level": "info",
+            "compactMetadata": {
+              "trigger": "manual",
+              "preTokens": 36066,
+              "postTokens": 8452,
+              "durationMs": 36258
+            }
+          },
+          "metadata": {}
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "system",
+          "uuid": "claude_compact_boundary_1",
+          "parentUuid": null,
+          "logicalParentUuid": "claude_system_local_1",
+          "cwd": "/tmp/claude",
+          "sessionId": "claude_fixture_v3",
+          "version": "2.1.109",
+          "gitBranch": "main",
+          "timestamp": "2026-04-15T21:33:13.563Z",
+          "subtype": "compact_boundary",
+          "content": "Conversation compacted",
+          "level": "info",
+          "compactMetadata": {
+            "trigger": "manual",
+            "preTokens": 36066,
+            "postTokens": 8452,
+            "durationMs": 36258
           }
         }
       }
     },
     {
       "id": "claude_compact_command_1",
-      "parent_id": "claude_system_1",
-      "timestamp": "2026-04-15T21:32:37.303Z",
+      "parent_id": "claude_compact_boundary_1",
+      "timestamp": "2026-04-15T21:33:13.600Z",
       "kind": "meta",
       "role": "user",
       "blocks": [
@@ -275,12 +495,12 @@
             "raw": {
               "type": "user",
               "uuid": "claude_compact_command_1",
-              "parentUuid": "claude_system_1",
+              "parentUuid": "claude_compact_boundary_1",
               "cwd": "/tmp/claude",
-              "sessionId": "claude_fixture_v2",
+              "sessionId": "claude_fixture_v3",
               "version": "2.1.109",
               "gitBranch": "main",
-              "timestamp": "2026-04-15T21:32:37.303Z",
+              "timestamp": "2026-04-15T21:33:13.600Z",
               "message": {
                 "role": "user",
                 "content": "<command-name>/compact</command-name>\n<command-message>compact</command-message>\n<command-args></command-args>"
@@ -293,12 +513,12 @@
         "raw": {
           "type": "user",
           "uuid": "claude_compact_command_1",
-          "parentUuid": "claude_system_1",
+          "parentUuid": "claude_compact_boundary_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
-          "timestamp": "2026-04-15T21:32:37.303Z",
+          "timestamp": "2026-04-15T21:33:13.600Z",
           "message": {
             "role": "user",
             "content": "<command-name>/compact</command-name>\n<command-message>compact</command-message>\n<command-args></command-args>"
@@ -322,7 +542,7 @@
               "uuid": "claude_compact_stdout_1",
               "parentUuid": "claude_compact_command_1",
               "cwd": "/tmp/claude",
-              "sessionId": "claude_fixture_v2",
+              "sessionId": "claude_fixture_v3",
               "version": "2.1.109",
               "gitBranch": "main",
               "timestamp": "2026-04-15T21:33:13.666Z",
@@ -340,7 +560,7 @@
           "uuid": "claude_compact_stdout_1",
           "parentUuid": "claude_compact_command_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
           "timestamp": "2026-04-15T21:33:13.666Z",
@@ -353,7 +573,7 @@
     },
     {
       "id": "claude_compaction_summary_1",
-      "parent_id": "claude_compact_stdout_1",
+      "parent_id": "claude_compact_boundary_1",
       "timestamp": "2026-04-15T21:33:13.563Z",
       "kind": "compaction",
       "blocks": [
@@ -365,9 +585,9 @@
             "raw": {
               "type": "user",
               "uuid": "claude_compaction_summary_1",
-              "parentUuid": "claude_compact_stdout_1",
+              "parentUuid": "claude_compact_boundary_1",
               "cwd": "/tmp/claude",
-              "sessionId": "claude_fixture_v2",
+              "sessionId": "claude_fixture_v3",
               "version": "2.1.109",
               "gitBranch": "main",
               "timestamp": "2026-04-15T21:33:13.563Z",
@@ -384,9 +604,9 @@
         "raw": {
           "type": "user",
           "uuid": "claude_compaction_summary_1",
-          "parentUuid": "claude_compact_stdout_1",
+          "parentUuid": "claude_compact_boundary_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
           "timestamp": "2026-04-15T21:33:13.563Z",
@@ -395,36 +615,6 @@
             "content": "This session is being continued from a previous conversation that ran out of context. The summary below covers the earlier portion of the conversation.\n\nSummary:\n1. The user asked for an overview of the project.\n2. I inspected the schema and planned the next steps."
           },
           "isCompactSummary": true
-        }
-      }
-    },
-    {
-      "id": "claude-file-history-snapshot:10",
-      "kind": "meta",
-      "blocks": [
-        {
-          "type": "raw",
-          "raw": {
-            "type": "file-history-snapshot",
-            "messageId": "claude_post_prompt_1",
-            "snapshot": {
-              "messageId": "claude_post_prompt_1",
-              "timestamp": "2026-04-15T21:34:10.632Z"
-            },
-            "isSnapshotUpdate": false
-          },
-          "metadata": {}
-        }
-      ],
-      "metadata": {
-        "raw": {
-          "type": "file-history-snapshot",
-          "messageId": "claude_post_prompt_1",
-          "snapshot": {
-            "messageId": "claude_post_prompt_1",
-            "timestamp": "2026-04-15T21:34:10.632Z"
-          },
-          "isSnapshotUpdate": false
         }
       }
     },
@@ -447,7 +637,7 @@
           "uuid": "claude_post_prompt_1",
           "parentUuid": "claude_compaction_summary_1",
           "cwd": "/tmp/claude",
-          "sessionId": "claude_fixture_v2",
+          "sessionId": "claude_fixture_v3",
           "version": "2.1.109",
           "gitBranch": "main",
           "timestamp": "2026-04-15T21:34:10.632Z",
@@ -459,7 +649,7 @@
       }
     },
     {
-      "id": "claude-last-prompt:12",
+      "id": "claude-last-prompt:16",
       "kind": "meta",
       "blocks": [
         {
@@ -469,7 +659,7 @@
             "raw": {
               "type": "last-prompt",
               "lastPrompt": "review @UNIFIED_SESSION_SHAPE.md . do you think it's a solid design?",
-              "sessionId": "claude_fixture_v2"
+              "sessionId": "claude_fixture_v3"
             }
           }
         }
@@ -478,7 +668,7 @@
         "raw": {
           "type": "last-prompt",
           "lastPrompt": "review @UNIFIED_SESSION_SHAPE.md . do you think it's a solid design?",
-          "sessionId": "claude_fixture_v2"
+          "sessionId": "claude_fixture_v3"
         }
       }
     }

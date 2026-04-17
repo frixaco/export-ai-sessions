@@ -32,10 +32,6 @@ function asRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function asString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
 function normalizedTextFromContent(content: unknown): string {
   if (!Array.isArray(content)) {
     return "";
@@ -43,12 +39,15 @@ function normalizedTextFromContent(content: unknown): string {
 
   return content
     .flatMap((block) => {
-      const record = asRecord(block);
-      if (record === null) {
+      if (typeof block !== "object" || block === null || Array.isArray(block)) {
         return [];
       }
-      const type = asString(record.type);
-      if ((type === "input_text" || type === "output_text") && typeof record.text === "string") {
+
+      const record = block as Record<string, unknown>;
+      if (
+        (record.type === "input_text" || record.type === "output_text") &&
+        typeof record.text === "string"
+      ) {
         return [record.text.trim()];
       }
       return [];
@@ -64,8 +63,12 @@ function reasoningText(summary: unknown): string {
 
   return summary
     .flatMap((item) => {
-      const record = asRecord(item);
-      if (record?.type === "summary_text" && typeof record.text === "string") {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        return [];
+      }
+
+      const record = item as Record<string, unknown>;
+      if (record.type === "summary_text" && typeof record.text === "string") {
         return [record.text.trim()];
       }
       return [];
@@ -108,21 +111,22 @@ function itemFromResponseItem(
 ): UnifiedSessionItem | null {
   const payload = entry.payload ?? {};
   const baseId =
-    asString(payload.id) ?? asString(payload.call_id) ?? fallbackId("codex-response", index);
+    (typeof payload.id === "string" ? payload.id : null) ??
+    (typeof payload.call_id === "string" ? payload.call_id : null) ??
+    fallbackId("codex-response", index);
   const timestamp = normalizeTimestamp(entry.timestamp);
   const metadata = { raw: payload };
 
   switch (payload.type) {
     case "message": {
       const text = normalizedTextFromContent(payload.content);
+      const role = typeof payload.role === "string" ? payload.role : null;
       return {
         id: baseId,
         ...(timestamp !== null ? { timestamp } : {}),
         kind: "message",
-        ...(asString(payload.role) !== null ? { role: asString(payload.role) } : {}),
-        ...(currentModel !== null && asString(payload.role) === "assistant"
-          ? { model: currentModel }
-          : {}),
+        ...(role !== null ? { role } : {}),
+        ...(currentModel !== null && role === "assistant" ? { model: currentModel } : {}),
         blocks: text.length > 0 ? [textBlock(text, metadata)] : [rawBlock(payload)],
         metadata,
       };
@@ -149,13 +153,19 @@ function itemFromResponseItem(
         ...(currentModel !== null ? { model: currentModel } : {}),
         blocks: [
           toolCallBlock({
-            call_id: asString(payload.call_id),
-            tool_name: asString(payload.name),
+            call_id: typeof payload.call_id === "string" ? payload.call_id : null,
+            tool_name: typeof payload.name === "string" ? payload.name : null,
             arguments:
-              (typeof payload.arguments === "string" || asRecord(payload.arguments) !== null
+              (typeof payload.arguments === "string" ||
+              (typeof payload.arguments === "object" &&
+                payload.arguments !== null &&
+                !Array.isArray(payload.arguments))
                 ? (payload.arguments as Record<string, unknown> | string | null)
                 : null) ??
-              (typeof payload.input === "string" || asRecord(payload.input) !== null
+              (typeof payload.input === "string" ||
+              (typeof payload.input === "object" &&
+                payload.input !== null &&
+                !Array.isArray(payload.input))
                 ? (payload.input as Record<string, unknown> | string | null)
                 : null),
             metadata,
@@ -172,8 +182,8 @@ function itemFromResponseItem(
         role: "tool",
         blocks: [
           toolResultBlock({
-            call_id: asString(payload.call_id),
-            tool_name: asString(payload.name),
+            call_id: typeof payload.call_id === "string" ? payload.call_id : null,
+            tool_name: typeof payload.name === "string" ? payload.name : null,
             is_error: payload.is_error === true,
             content:
               typeof payload.output === "string"
@@ -187,6 +197,7 @@ function itemFromResponseItem(
         metadata,
       };
     case "web_search_call":
+      const action = asRecord(payload.action);
       return {
         id: baseId,
         ...(timestamp !== null ? { timestamp } : {}),
@@ -195,9 +206,18 @@ function itemFromResponseItem(
         ...(currentModel !== null ? { model: currentModel } : {}),
         blocks: [
           searchBlock({
-            query: asString(payload.query) ?? asString(payload.search_query),
-            status: asString(payload.status),
-            provider: asString(payload.provider),
+            query:
+              typeof payload.query === "string"
+                ? payload.query
+                : typeof payload.search_query === "string"
+                  ? payload.search_query
+                  : typeof action?.query === "string"
+                    ? action.query
+                    : typeof action?.search_query === "string"
+                      ? action.search_query
+                      : null,
+            status: typeof payload.status === "string" ? payload.status : null,
+            provider: typeof payload.provider === "string" ? payload.provider : null,
             metadata,
           }),
         ],
@@ -220,7 +240,7 @@ function itemFromEventMessage(
   currentModel: string | null,
 ): UnifiedSessionItem | null {
   const payload = entry.payload ?? {};
-  const eventType = asString(payload.type);
+  const eventType = typeof payload.type === "string" ? payload.type : null;
   const timestamp = normalizeTimestamp(entry.timestamp);
   const metadata = { raw: payload };
 
@@ -280,7 +300,7 @@ function candidateFromResponse(entry: CodexEntry): CanonicalCandidate | null {
       return text.length > 0
         ? {
             kind: "message",
-            role: asString(payload.role),
+            role: typeof payload.role === "string" ? payload.role : null,
             text,
             timestampMs: timestampMs(entry.timestamp),
           }
@@ -322,12 +342,13 @@ export const codexConverter = {
 
     const items: UnifiedSessionItem[] = [];
     let currentModel: string | null = null;
-    let currentCwd: string | null = asString(sessionMeta.cwd);
+    let currentCwd: string | null = typeof sessionMeta.cwd === "string" ? sessionMeta.cwd : null;
 
     for (const [index, entry] of payload.entries.entries()) {
       if (entry.type === "turn_context") {
-        currentModel = asString(entry.payload?.model) ?? currentModel;
-        currentCwd = asString(entry.payload?.cwd) ?? currentCwd;
+        currentModel =
+          typeof entry.payload?.model === "string" ? entry.payload.model : currentModel;
+        currentCwd = typeof entry.payload?.cwd === "string" ? entry.payload.cwd : currentCwd;
         items.push({
           id: fallbackId("codex-turn-context", index),
           ...(normalizeTimestamp(entry.timestamp) !== null
@@ -364,7 +385,7 @@ export const codexConverter = {
             compactionBlock({
               mode: "replacement",
               replacement_items: Array.isArray(entry.payload?.replacement_history)
-                ? entry.payload?.replacement_history
+                ? entry.payload.replacement_history
                 : [],
               metadata: { raw: entry.payload ?? {} },
             }),
@@ -383,34 +404,45 @@ export const codexConverter = {
       }
 
       if (entry.type === "event_msg") {
-        const eventType = asString(entry.payload?.type);
+        const eventType = typeof entry.payload?.type === "string" ? entry.payload.type : null;
         if (eventType === "token_count") {
           continue;
         }
 
         if (eventType === "user_message" && typeof entry.payload?.message === "string") {
-          const text = entry.payload.message;
-          if (equivalentToCandidate("message", "user", text, entry.timestamp, responseCandidates)) {
+          if (
+            equivalentToCandidate(
+              "message",
+              "user",
+              entry.payload.message,
+              entry.timestamp,
+              responseCandidates,
+            )
+          ) {
             continue;
           }
         }
 
         if (eventType === "agent_message" && typeof entry.payload?.message === "string") {
-          const text = entry.payload.message;
           if (
-            equivalentToCandidate("message", "assistant", text, entry.timestamp, responseCandidates)
+            equivalentToCandidate(
+              "message",
+              "assistant",
+              entry.payload.message,
+              entry.timestamp,
+              responseCandidates,
+            )
           ) {
             continue;
           }
         }
 
         if (eventType === "agent_reasoning" && typeof entry.payload?.text === "string") {
-          const text = entry.payload.text;
           if (
             equivalentToCandidate(
               "reasoning",
               "assistant",
-              text,
+              entry.payload.text,
               entry.timestamp,
               responseCandidates,
             )
@@ -429,29 +461,34 @@ export const codexConverter = {
     return {
       version: UNIFIED_SESSION_VERSION,
       source: "codex",
-      ...(asString(sessionMeta.cli_version) !== null
-        ? { source_schema_version: asString(sessionMeta.cli_version) }
+      ...(typeof sessionMeta.cli_version === "string"
+        ? { source_schema_version: sessionMeta.cli_version }
         : {}),
       session: {
-        id: asString(sessionMeta.id) ?? "codex-session",
+        id: typeof sessionMeta.id === "string" ? sessionMeta.id : "codex-session",
         ...(currentCwd !== null ? { cwd: currentCwd } : {}),
-        ...(normalizeTimestamp(asString(sessionMeta.timestamp) ?? sessionMetaEntry?.timestamp) !==
-        null
+        ...(normalizeTimestamp(
+          typeof sessionMeta.timestamp === "string"
+            ? sessionMeta.timestamp
+            : sessionMetaEntry?.timestamp,
+        ) !== null
           ? {
               created_at: normalizeTimestamp(
-                asString(sessionMeta.timestamp) ?? sessionMetaEntry?.timestamp,
+                typeof sessionMeta.timestamp === "string"
+                  ? sessionMeta.timestamp
+                  : sessionMetaEntry?.timestamp,
               ),
             }
           : {}),
-        ...(asString(sessionMeta.cli_version) !== null
-          ? { provider_version: asString(sessionMeta.cli_version) }
+        ...(typeof sessionMeta.cli_version === "string"
+          ? { provider_version: sessionMeta.cli_version }
           : {}),
         metadata: {
-          ...(asString(sessionMeta.model_provider) !== null
-            ? { model_provider: asString(sessionMeta.model_provider) }
+          ...(typeof sessionMeta.model_provider === "string"
+            ? { model_provider: sessionMeta.model_provider }
             : {}),
-          ...(asString(sessionMeta.originator) !== null
-            ? { originator: asString(sessionMeta.originator) }
+          ...(typeof sessionMeta.originator === "string"
+            ? { originator: sessionMeta.originator }
             : {}),
         },
       },

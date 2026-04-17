@@ -24,16 +24,6 @@ interface ParsedPiPayload {
   readonly filePath?: string;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
 function normalizePiContent(content: unknown): UnifiedBlock[] {
   if (typeof content === "string") {
     return [textBlock(content)];
@@ -43,25 +33,35 @@ function normalizePiContent(content: unknown): UnifiedBlock[] {
   }
 
   return content.flatMap<UnifiedBlock>((item) => {
-    const record = asRecord(item);
-    if (record === null) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
       return [];
     }
+
+    const record = item as Record<string, unknown>;
 
     switch (record.type) {
       case "text":
         return typeof record.text === "string" ? [textBlock(record.text, { raw: record })] : [];
       case "thinking":
         return typeof record.thinking === "string"
-          ? [thinkingBlock(record.thinking, asString(record.thinkingSignature), { raw: record })]
+          ? [
+              thinkingBlock(
+                record.thinking,
+                typeof record.thinkingSignature === "string" ? record.thinkingSignature : null,
+                { raw: record },
+              ),
+            ]
           : [];
       case "toolCall":
         return [
           toolCallBlock({
-            call_id: asString(record.id),
-            tool_name: asString(record.name),
+            call_id: typeof record.id === "string" ? record.id : null,
+            tool_name: typeof record.name === "string" ? record.name : null,
             arguments:
-              typeof record.arguments === "string" || asRecord(record.arguments) !== null
+              typeof record.arguments === "string" ||
+              (typeof record.arguments === "object" &&
+                record.arguments !== null &&
+                !Array.isArray(record.arguments))
                 ? (record.arguments as Record<string, unknown> | string | null)
                 : null,
             metadata: { raw: record },
@@ -70,8 +70,8 @@ function normalizePiContent(content: unknown): UnifiedBlock[] {
       case "image":
         return [
           imageBlock({
-            data: asString(record.data),
-            mime: asString(record.mimeType),
+            data: typeof record.data === "string" ? record.data : null,
+            mime: typeof record.mimeType === "string" ? record.mimeType : null,
             metadata: { raw: record },
           }),
         ];
@@ -137,7 +137,7 @@ function itemFromPiEntry(entry: PiEntry, index: number): UnifiedSessionItem | nu
       blocks: [
         compactionBlock({
           mode: "summary",
-          summary_text: asString(entry.summary),
+          summary_text: typeof entry.summary === "string" ? entry.summary : null,
           metadata: { raw: entry },
         }),
       ],
@@ -146,17 +146,20 @@ function itemFromPiEntry(entry: PiEntry, index: number): UnifiedSessionItem | nu
   }
 
   const message = entry.message ?? {};
-  const role = asString(message.role);
+  const role = typeof message.role === "string" ? message.role : null;
   const blocks = normalizePiContent(message.content);
-  const usage = asRecord(message.usage);
-  const provider = asString(message.provider);
-  const model = asString(message.model);
+  const usage =
+    typeof message.usage === "object" && message.usage !== null && !Array.isArray(message.usage)
+      ? (message.usage as Record<string, unknown>)
+      : null;
+  const provider = typeof message.provider === "string" ? message.provider : null;
+  const model = typeof message.model === "string" ? message.model : null;
 
   if (role === "toolResult") {
     const toolResultBlocks: UnifiedBlock[] = [
       toolResultBlock({
-        call_id: asString(message.toolCallId),
-        tool_name: asString(message.toolName),
+        call_id: typeof message.toolCallId === "string" ? message.toolCallId : null,
+        tool_name: typeof message.toolName === "string" ? message.toolName : null,
         is_error: message.isError === true,
         content:
           blocks
@@ -223,8 +226,8 @@ export const piConverter = {
         ? { source_schema_version: String(header.version) }
         : {}),
       session: {
-        id: asString(header?.id) ?? "pi-session",
-        ...(asString(header?.cwd) !== null ? { cwd: asString(header?.cwd) } : {}),
+        id: typeof header?.id === "string" ? header.id : "pi-session",
+        ...(typeof header?.cwd === "string" ? { cwd: header.cwd } : {}),
         ...(normalizeTimestamp(header?.timestamp) !== null
           ? { created_at: normalizeTimestamp(header?.timestamp) }
           : {}),

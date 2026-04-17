@@ -23,16 +23,6 @@ interface ParsedFactoryPayload {
   readonly filePath?: string;
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-  return typeof value === "object" && value !== null && !Array.isArray(value)
-    ? (value as Record<string, unknown>)
-    : null;
-}
-
-function asString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
 function blocksFromFactoryContent(content: unknown): UnifiedBlock[] {
   if (typeof content === "string") {
     return [textBlock(content)];
@@ -43,25 +33,40 @@ function blocksFromFactoryContent(content: unknown): UnifiedBlock[] {
   }
 
   return content.flatMap<UnifiedBlock>((item) => {
-    const record = asRecord(item);
-    if (record === null) {
+    if (typeof item !== "object" || item === null || Array.isArray(item)) {
       return [];
     }
+
+    const record = item as Record<string, unknown>;
 
     switch (record.type) {
       case "text":
         return typeof record.text === "string" ? [textBlock(record.text, { raw: record })] : [];
       case "thinking":
         return typeof record.thinking === "string"
-          ? [thinkingBlock(record.thinking, asString(record.signature), { raw: record })]
+          ? [
+              thinkingBlock(
+                record.thinking,
+                typeof record.signature === "string" ? record.signature : null,
+                { raw: record },
+              ),
+            ]
           : [];
       case "tool_use":
         return [
           toolCallBlock({
-            call_id: asString(record.id) ?? asString(record.tool_use_id),
-            tool_name: asString(record.name),
+            call_id:
+              typeof record.id === "string"
+                ? record.id
+                : typeof record.tool_use_id === "string"
+                  ? record.tool_use_id
+                  : null,
+            tool_name: typeof record.name === "string" ? record.name : null,
             arguments:
-              typeof record.input === "string" || asRecord(record.input) !== null
+              typeof record.input === "string" ||
+              (typeof record.input === "object" &&
+                record.input !== null &&
+                !Array.isArray(record.input))
                 ? (record.input as Record<string, unknown> | string | null)
                 : null,
             metadata: { raw: record },
@@ -70,10 +75,10 @@ function blocksFromFactoryContent(content: unknown): UnifiedBlock[] {
       case "tool_result":
         return [
           toolResultBlock({
-            call_id: asString(record.tool_use_id),
+            call_id: typeof record.tool_use_id === "string" ? record.tool_use_id : null,
             tool_name: null,
             is_error: record.is_error === true,
-            content: asString(record.content),
+            content: typeof record.content === "string" ? record.content : null,
             metadata: { raw: record },
           }),
         ];
@@ -94,8 +99,8 @@ function itemFromFactoryEntry(entry: FactoryEntry, index: number): UnifiedSessio
       blocks: [
         compactionBlock({
           mode: "summary",
-          summary_text: asString(entry.summaryText),
-          summary_kind: asString(entry.summaryKind),
+          summary_text: typeof entry.summaryText === "string" ? entry.summaryText : null,
+          summary_kind: typeof entry.summaryKind === "string" ? entry.summaryKind : null,
           summary_tokens: typeof entry.summaryTokens === "number" ? entry.summaryTokens : null,
           removed_count: typeof entry.removedCount === "number" ? entry.removedCount : null,
           metadata: { raw: entry, systemInfo: entry.systemInfo },
@@ -115,8 +120,12 @@ function itemFromFactoryEntry(entry: FactoryEntry, index: number): UnifiedSessio
     };
   }
 
-  const role = asString(entry.role);
-  const blocks = blocksFromFactoryContent(entry.content);
+  const message =
+    typeof entry.message === "object" && entry.message !== null && !Array.isArray(entry.message)
+      ? (entry.message as Record<string, unknown>)
+      : entry;
+  const role = typeof message.role === "string" ? message.role : null;
+  const blocks = blocksFromFactoryContent(message.content);
   const classification = classifyItemKindFromBlocks(blocks, role);
 
   return {
@@ -128,7 +137,7 @@ function itemFromFactoryEntry(entry: FactoryEntry, index: number): UnifiedSessio
     ...(timestamp !== null ? { timestamp } : {}),
     kind: classification.kind,
     ...(classification.role !== null ? { role: classification.role } : {}),
-    ...(asString(entry.model) !== null ? { model: asString(entry.model) } : {}),
+    ...(typeof message.model === "string" ? { model: message.model } : {}),
     blocks: blocks.length > 0 ? blocks : [rawBlock(entry)],
     metadata: { raw: entry },
   };
@@ -158,21 +167,19 @@ export const factoryConverter = {
         ? { source_schema_version: String(sessionStart.version) }
         : {}),
       session: {
-        id: asString(sessionStart?.id) ?? "factory-session",
-        ...(asString(sessionStart?.parent) !== null
-          ? { parent_session_id: asString(sessionStart?.parent) }
+        id: typeof sessionStart?.id === "string" ? sessionStart.id : "factory-session",
+        ...(typeof sessionStart?.parent === "string"
+          ? { parent_session_id: sessionStart.parent }
           : {}),
-        ...(asString(sessionStart?.title) !== null ? { title: asString(sessionStart?.title) } : {}),
-        ...(asString(sessionStart?.cwd) !== null ? { cwd: asString(sessionStart?.cwd) } : {}),
+        ...(typeof sessionStart?.title === "string" ? { title: sessionStart.title } : {}),
+        ...(typeof sessionStart?.cwd === "string" ? { cwd: sessionStart.cwd } : {}),
         ...(typeof sessionStart?.version === "number"
           ? { provider_version: String(sessionStart.version) }
           : {}),
         metadata: {
-          ...(asString(sessionStart?.owner) !== null
-            ? { owner: asString(sessionStart?.owner) }
-            : {}),
-          ...(asString(sessionStart?.sessionTitle) !== null
-            ? { session_title: asString(sessionStart?.sessionTitle) }
+          ...(typeof sessionStart?.owner === "string" ? { owner: sessionStart.owner } : {}),
+          ...(typeof sessionStart?.sessionTitle === "string"
+            ? { session_title: sessionStart.sessionTitle }
             : {}),
         },
       },

@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"pi_broken_fixture","timestamp":"2026-01-30T18:00:00.000Z","cwd":"/tmp/pi-broken"}
+{"type":"message","id":"root","parentId":null,"timestamp":"2026-01-30T18:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"root"}]}}
+{"type":"message","id":"child","parentId":"root","timestamp":"2026-01-30T18:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"child"}]}}
+{"type":"message","id":"orphan","parentId":"missing","timestamp":"2026-01-30T18:00:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"orphan"}]}}

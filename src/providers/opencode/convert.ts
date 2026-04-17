@@ -23,10 +23,6 @@ interface ParsedOpencodePayload {
   readonly filePath?: string;
 }
 
-function asString(value: unknown): string | null {
-  return typeof value === "string" ? value : null;
-}
-
 function normalizeRole(value: unknown): string | null {
   if (typeof value !== "string") {
     return null;
@@ -35,6 +31,32 @@ function normalizeRole(value: unknown): string | null {
     return "tool";
   }
   return value;
+}
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === "object" && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function toolArgumentValue(value: unknown): Record<string, unknown> | string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  return asRecord(value);
+}
+
+function toolContentValue(value: unknown): string | null {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (typeof value === "number" || typeof value === "boolean") {
+    return String(value);
+  }
+  if (value !== null && typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return null;
 }
 
 function normalizeOpencodeBlock(
@@ -46,48 +68,88 @@ function normalizeOpencodeBlock(
       return typeof part.text === "string" ? textBlock(part.text, { raw: part }) : null;
     case "file":
       return fileRefBlock({
-        path: asString(part.path) ?? asString(part.filePath),
-        url: asString(part.url),
-        mime: asString(part.mime) ?? asString(part.mimeType),
-        label: asString(part.label) ?? asString(part.text),
+        path:
+          typeof part.path === "string"
+            ? part.path
+            : typeof part.filePath === "string"
+              ? part.filePath
+              : null,
+        url: typeof part.url === "string" ? part.url : null,
+        mime:
+          typeof part.mime === "string"
+            ? part.mime
+            : typeof part.mimeType === "string"
+              ? part.mimeType
+              : null,
+        label:
+          typeof part.label === "string"
+            ? part.label
+            : typeof part.text === "string"
+              ? part.text
+              : null,
         metadata: { raw: part },
       });
     case "patch": {
       const files = Array.isArray(part.files)
         ? part.files.filter((value): value is string => typeof value === "string")
         : [];
-      return patchRefBlock(files, asString(part.hash), { raw: part });
+      return patchRefBlock(files, typeof part.hash === "string" ? part.hash : null, { raw: part });
     }
     case "tool": {
-      const toolName = asString(part.tool) ?? asString(part.name);
-      const callId = asString(part.toolCallID) ?? asString(part.callID) ?? asString(part.id);
-      const hasOutput = "output" in part || "result" in part || role === "tool";
+      const state = asRecord(part.state);
+      const toolName =
+        typeof part.tool === "string"
+          ? part.tool
+          : typeof part.name === "string"
+            ? part.name
+            : typeof state?.tool === "string"
+              ? state.tool
+              : typeof state?.name === "string"
+                ? state.name
+                : null;
+      const callId =
+        typeof part.toolCallID === "string"
+          ? part.toolCallID
+          : typeof part.callID === "string"
+            ? part.callID
+            : typeof part.id === "string"
+              ? part.id
+              : typeof state?.toolCallID === "string"
+                ? state.toolCallID
+                : typeof state?.callID === "string"
+                  ? state.callID
+                  : typeof state?.id === "string"
+                    ? state.id
+                    : null;
+      const outputValue =
+        "output" in part
+          ? part.output
+          : "result" in part
+            ? part.result
+            : state !== null && "output" in state
+              ? state.output
+              : state !== null && "result" in state
+                ? state.result
+                : null;
+      const hasOutput =
+        "output" in part ||
+        "result" in part ||
+        (state !== null && ("output" in state || "result" in state)) ||
+        role === "tool";
       if (hasOutput) {
-        const contentValue =
-          typeof part.output === "string"
-            ? part.output
-            : typeof part.result === "string"
-              ? part.result
-              : null;
         return toolResultBlock({
           call_id: callId,
           tool_name: toolName,
-          is_error: part.isError === true,
-          content: contentValue,
+          is_error: part.isError === true || state?.isError === true,
+          content: toolContentValue(outputValue),
           metadata: { raw: part },
         });
       }
       const argumentsValue =
-        (typeof part.input === "string"
-          ? part.input
-          : typeof part.input === "object" && part.input !== null
-            ? (part.input as Record<string, unknown>)
-            : undefined) ??
-        (typeof part.arguments === "string"
-          ? part.arguments
-          : typeof part.arguments === "object" && part.arguments !== null
-            ? (part.arguments as Record<string, unknown>)
-            : null);
+        toolArgumentValue(part.input) ??
+        toolArgumentValue(part.arguments) ??
+        toolArgumentValue(state?.input) ??
+        toolArgumentValue(state?.arguments);
       return toolCallBlock({
         call_id: callId,
         tool_name: toolName,
@@ -117,16 +179,24 @@ function messageUsage(info: Record<string, unknown>): Record<string, unknown> | 
 
 function normalizeMessageItems(message: OpencodeMessage, index: number): UnifiedSessionItem[] {
   const info = message.info;
-  const messageId = asString(info.id) ?? `opencode-message:${index + 1}`;
+  const messageId = typeof info.id === "string" ? info.id : `opencode-message:${index + 1}`;
   const timestamp = normalizeTimestamp((info.time as { created?: number } | undefined)?.created);
   const role = normalizeRole(info.role);
   const model =
-    asString(info.modelID) ?? asString((info.model as { modelID?: string } | undefined)?.modelID);
+    typeof info.modelID === "string"
+      ? info.modelID
+      : typeof (info.model as { modelID?: string } | undefined)?.modelID === "string"
+        ? (info.model as { modelID?: string }).modelID
+        : null;
   const provider =
-    asString(info.providerID) ??
-    asString((info.model as { providerID?: string } | undefined)?.providerID);
-  const agent = asString(info.agent) ?? asString(info.mode);
-  const parentId = asString(info.parentID);
+    typeof info.providerID === "string"
+      ? info.providerID
+      : typeof (info.model as { providerID?: string } | undefined)?.providerID === "string"
+        ? (info.model as { providerID?: string }).providerID
+        : null;
+  const agent =
+    typeof info.agent === "string" ? info.agent : typeof info.mode === "string" ? info.mode : null;
+  const parentId = typeof info.parentID === "string" ? info.parentID : null;
   const usage = messageUsage(info);
 
   const normalBlocks: UnifiedBlock[] = [];

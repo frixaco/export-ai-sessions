@@ -1,0 +1,2 @@
+{"type":"session_start","id":"factory_fixture_mixed","title":"Factory mixed fixture","version":2,"cwd":"/tmp/factory-mixed"}
+{"type":"message","id":"fac_mixed_1","timestamp":"2026-04-03T21:00:00.000Z","message":{"role":"assistant","model":"gpt-5","content":[{"type":"thinking","thinking":"Need to inspect setup","signature":"sig_factory_mixed"},{"type":"tool_use","id":"tool_factory_mixed_1","name":"read_file","input":{"path":"README.md"}},{"type":"text","text":"I checked the README."}]}}

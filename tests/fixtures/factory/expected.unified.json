@@ -98,7 +98,7 @@
       "parent_id": "cmp_1",
       "compaction_ref_id": "cmp_1",
       "timestamp": "2026-04-03T20:48:16.000Z",
-      "kind": "reasoning",
+      "kind": "message",
       "role": "assistant",
       "model": "gpt-5",
       "blocks": [
@@ -113,6 +113,16 @@
               "signature": "sig_factory"
             }
           }
+        },
+        {
+          "type": "text",
+          "text": "Inspecting the setup now.",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "Inspecting the setup now."
+            }
+          }
         }
       ],
       "metadata": {
@@ -122,15 +132,21 @@
           "parentId": "cmp_1",
           "compactionSummaryId": "cmp_1",
           "timestamp": "2026-04-03T20:48:16.000Z",
-          "role": "assistant",
-          "model": "gpt-5",
-          "content": [
-            {
-              "type": "thinking",
-              "thinking": "Need to inspect setup",
-              "signature": "sig_factory"
-            }
-          ]
+          "message": {
+            "role": "assistant",
+            "model": "gpt-5",
+            "content": [
+              {
+                "type": "thinking",
+                "thinking": "Need to inspect setup",
+                "signature": "sig_factory"
+              },
+              {
+                "type": "text",
+                "text": "Inspecting the setup now."
+              }
+            ]
+          }
         }
       }
     },
@@ -169,18 +185,20 @@
           "parentId": "fac_1",
           "compactionSummaryId": "cmp_1",
           "timestamp": "2026-04-03T20:48:17.000Z",
-          "role": "assistant",
-          "model": "gpt-5",
-          "content": [
-            {
-              "type": "tool_use",
-              "id": "tool_factory_1",
-              "name": "read_file",
-              "input": {
-                "path": "app/globals.css"
+          "message": {
+            "role": "assistant",
+            "model": "gpt-5",
+            "content": [
+              {
+                "type": "tool_use",
+                "id": "tool_factory_1",
+                "name": "read_file",
+                "input": {
+                  "path": "app/globals.css"
+                }
               }
-            }
-          ]
+            ]
+          }
         }
       }
     },
@@ -215,15 +233,17 @@
           "parentId": "fac_2",
           "compactionSummaryId": "cmp_1",
           "timestamp": "2026-04-03T20:48:18.000Z",
-          "role": "user",
-          "content": [
-            {
-              "type": "tool_result",
-              "tool_use_id": "tool_factory_1",
-              "content": "body { color: red; }",
-              "is_error": false
-            }
-          ]
+          "message": {
+            "role": "user",
+            "content": [
+              {
+                "type": "tool_result",
+                "tool_use_id": "tool_factory_1",
+                "content": "body { color: red; }",
+                "is_error": false
+              }
+            ]
+          }
         }
       }
     }

@@ -7,7 +7,7 @@
     "title": "Fixture OpenCode Session",
     "version": "1.2.3",
     "summary": {
-      "files": 1
+      "files": 2
     },
     "time": {
       "created": 1704067200000,
@@ -62,6 +62,17 @@
           }
         },
         {
+          "type": "file",
+          "path": "/tmp/file.ts",
+          "label": "file.ts",
+          "mimeType": "text/typescript"
+        },
+        {
+          "type": "patch",
+          "hash": "patch_123",
+          "files": ["/tmp/file.ts"]
+        },
+        {
           "type": "text",
           "text": "done"
         },
@@ -72,10 +83,31 @@
     },
     {
       "info": {
+        "id": "msg_tool_result_1",
+        "role": "toolResult",
+        "sessionID": "ses_fixture",
+        "parentID": "msg_assistant_1",
+        "providerID": "anthropic",
+        "modelID": "claude-opus",
+        "time": {
+          "created": 1704067202500
+        }
+      },
+      "parts": [
+        {
+          "type": "tool",
+          "id": "call_open_1",
+          "name": "read",
+          "output": "export const value = 1;"
+        }
+      ]
+    },
+    {
+      "info": {
         "id": "msg_compaction_1",
         "role": "assistant",
         "sessionID": "ses_fixture",
-        "parentID": "msg_assistant_1",
+        "parentID": "msg_tool_result_1",
         "providerID": "anthropic",
         "modelID": "claude-opus",
         "time": {
@@ -86,6 +118,10 @@
         {
           "type": "compaction",
           "auto": false
+        },
+        {
+          "type": "compaction",
+          "auto": true
         }
       ]
     }

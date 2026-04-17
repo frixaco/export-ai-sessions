@@ -125,9 +125,85 @@
       }
     },
     {
-      "id": "c1",
+      "id": "tool_1",
       "parent_id": "a1",
       "timestamp": "2026-01-30T16:00:03.000Z",
+      "kind": "tool_result",
+      "role": "tool",
+      "blocks": [
+        {
+          "type": "tool_result",
+          "call_id": "tool_pi_1",
+          "tool_name": "bash",
+          "is_error": false,
+          "content": "Read image file [image/png]",
+          "metadata": {
+            "raw": {
+              "role": "toolResult",
+              "toolCallId": "tool_pi_1",
+              "toolName": "bash",
+              "content": [
+                {
+                  "type": "text",
+                  "text": "Read image file [image/png]"
+                },
+                {
+                  "type": "image",
+                  "data": "ZmFrZV9pbWFnZV9kYXRh",
+                  "mimeType": "image/png"
+                }
+              ],
+              "isError": false
+            }
+          }
+        },
+        {
+          "type": "text",
+          "text": "Read image file [image/png]",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "Read image file [image/png]"
+            }
+          }
+        },
+        {
+          "type": "image",
+          "mime": "image/png",
+          "data": "ZmFrZV9pbWFnZV9kYXRh",
+          "metadata": {
+            "raw": {
+              "type": "image",
+              "data": "ZmFrZV9pbWFnZV9kYXRh",
+              "mimeType": "image/png"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "role": "toolResult",
+          "toolCallId": "tool_pi_1",
+          "toolName": "bash",
+          "content": [
+            {
+              "type": "text",
+              "text": "Read image file [image/png]"
+            },
+            {
+              "type": "image",
+              "data": "ZmFrZV9pbWFnZV9kYXRh",
+              "mimeType": "image/png"
+            }
+          ],
+          "isError": false
+        }
+      }
+    },
+    {
+      "id": "c1",
+      "parent_id": "tool_1",
+      "timestamp": "2026-01-30T16:00:04.000Z",
       "kind": "compaction",
       "blocks": [
         {
@@ -138,8 +214,8 @@
             "raw": {
               "type": "compaction",
               "id": "c1",
-              "parentId": "a1",
-              "timestamp": "2026-01-30T16:00:03.000Z",
+              "parentId": "tool_1",
+              "timestamp": "2026-01-30T16:00:04.000Z",
               "summary": "summary of earlier turns"
             }
           }
@@ -149,8 +225,8 @@
         "raw": {
           "type": "compaction",
           "id": "c1",
-          "parentId": "a1",
-          "timestamp": "2026-01-30T16:00:03.000Z",
+          "parentId": "tool_1",
+          "timestamp": "2026-01-30T16:00:04.000Z",
           "summary": "summary of earlier turns"
         }
       }

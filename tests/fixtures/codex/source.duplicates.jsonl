@@ -1,0 +1,7 @@
+{"timestamp":"2026-02-28T09:00:00.000Z","type":"session_meta","payload":{"id":"codex_duplicate_fixture","timestamp":"2026-02-28T09:00:00.000Z","cwd":"/tmp/codex-duplicate","cli_version":"0.1.0","model_provider":"openai","originator":"codex_cli_rs"}}
+{"timestamp":"2026-02-28T09:00:01.000Z","type":"turn_context","payload":{"turn_id":"turn_dup","cwd":"/tmp/codex-duplicate","model":"gpt-5.3-codex"}}
+{"timestamp":"2026-02-28T09:00:02.000Z","type":"response_item","payload":{"type":"message","role":"user","content":[{"type":"input_text","text":"review this patch"}]}}
+{"timestamp":"2026-02-28T09:00:02.400Z","type":"event_msg","payload":{"type":"user_message","message":"review this patch"}}
+{"timestamp":"2026-02-28T09:00:03.000Z","type":"response_item","payload":{"type":"reasoning","summary":[{"type":"summary_text","text":"Inspecting the diff"}]}}
+{"timestamp":"2026-02-28T09:00:03.400Z","type":"event_msg","payload":{"type":"agent_reasoning","text":"Inspecting the diff"}}
+{"timestamp":"2026-02-28T09:00:04.000Z","type":"event_msg","payload":{"type":"user_message","message":"this is new"}}

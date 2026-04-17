@@ -4,5 +4,6 @@ export interface FactoryEntry {
   readonly timestamp?: string;
   readonly parentId?: string | null;
   readonly compactionSummaryId?: string;
+  readonly message?: Record<string, unknown>;
   readonly [key: string]: unknown;
 }

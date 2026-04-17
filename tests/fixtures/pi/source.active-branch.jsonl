@@ -1,0 +1,4 @@
+{"type":"session","version":3,"id":"pi_active_branch_fixture","timestamp":"2026-01-30T17:00:00.000Z","cwd":"/tmp/pi-active"}
+{"type":"message","id":"root","parentId":null,"timestamp":"2026-01-30T17:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"root"}]}}
+{"type":"message","id":"branch_a","parentId":"root","timestamp":"2026-01-30T17:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"older branch"}]}}
+{"type":"message","id":"branch_b","parentId":"root","timestamp":"2026-01-30T17:00:03.000Z","message":{"role":"assistant","content":[{"type":"text","text":"active branch"}]}}

@@ -44,6 +44,42 @@
     },
     {
       "id": "codex-response:2",
+      "timestamp": "2026-02-28T08:00:00.500Z",
+      "kind": "message",
+      "role": "developer",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "Follow the repo conventions.",
+          "metadata": {
+            "raw": {
+              "type": "message",
+              "role": "developer",
+              "content": [
+                {
+                  "type": "input_text",
+                  "text": "Follow the repo conventions."
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "message",
+          "role": "developer",
+          "content": [
+            {
+              "type": "input_text",
+              "text": "Follow the repo conventions."
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "codex-response:3",
       "timestamp": "2026-02-28T08:00:01.000Z",
       "kind": "message",
       "role": "user",
@@ -79,7 +115,7 @@
       }
     },
     {
-      "id": "codex-turn-context:4",
+      "id": "codex-turn-context:5",
       "timestamp": "2026-02-28T08:00:02.000Z",
       "kind": "context",
       "blocks": [
@@ -102,7 +138,7 @@
       }
     },
     {
-      "id": "codex-response:5",
+      "id": "codex-response:6",
       "timestamp": "2026-02-28T08:00:03.000Z",
       "kind": "reasoning",
       "role": "assistant",
@@ -198,7 +234,40 @@
       }
     },
     {
-      "id": "codex-compaction:8",
+      "id": "search_1",
+      "timestamp": "2026-02-28T08:00:05.500Z",
+      "kind": "search",
+      "role": "assistant",
+      "model": "gpt-5.3-codex",
+      "blocks": [
+        {
+          "type": "search",
+          "query": "codex duplicate suppression",
+          "status": "completed",
+          "provider": "web",
+          "metadata": {
+            "raw": {
+              "type": "web_search_call",
+              "id": "search_1",
+              "query": "codex duplicate suppression",
+              "status": "completed",
+              "provider": "web"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "web_search_call",
+          "id": "search_1",
+          "query": "codex duplicate suppression",
+          "status": "completed",
+          "provider": "web"
+        }
+      }
+    },
+    {
+      "id": "codex-compaction:10",
       "timestamp": "2026-02-28T08:00:06.000Z",
       "kind": "compaction",
       "blocks": [
@@ -235,7 +304,7 @@
       }
     },
     {
-      "id": "codex-context-compacted:9",
+      "id": "codex-context-compacted:11",
       "timestamp": "2026-02-28T08:00:06.100Z",
       "kind": "context",
       "blocks": [
@@ -254,7 +323,7 @@
       }
     },
     {
-      "id": "codex-event-assistant:10",
+      "id": "codex-event-assistant:12",
       "timestamp": "2026-02-28T08:00:07.000Z",
       "kind": "message",
       "role": "assistant",
@@ -275,6 +344,32 @@
         "raw": {
           "type": "agent_message",
           "message": "Build is green."
+        }
+      }
+    },
+    {
+      "id": "codex-event-reasoning:13",
+      "timestamp": "2026-02-28T08:00:07.500Z",
+      "kind": "reasoning",
+      "role": "assistant",
+      "model": "gpt-5.3-codex",
+      "blocks": [
+        {
+          "type": "thinking",
+          "text": "Need to check one more thing.",
+          "signature": null,
+          "metadata": {
+            "raw": {
+              "type": "agent_reasoning",
+              "text": "Need to check one more thing."
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "type": "agent_reasoning",
+          "text": "Need to check one more thing."
         }
       }
     }

@@ -51,8 +51,9 @@ Default behavior:
   - `codex`: `~/.codex/{sessions,archived_sessions}` and `~/.codex-local/...`
   - `claude`: `~/.claude/projects`, `~/.claude-code/projects`, `~/.claude-local/projects`
   - `factory`: `~/.factory/sessions`
+  - `opencode`: `~/.local/share/opencode/opencode.db` or `~/Library/Application Support/opencode/opencode.db`
   - `pi`: `~/.pi/agent/sessions`
-- falls back to `data/<source>/` when no runtime sessions are found
+- falls back to `data/<source>/` when no runtime sessions are found, except `opencode`, which requires `opencode.db`
 - writes normalized output to `exported/<source>/<session-id>.json`
 
 Useful options:

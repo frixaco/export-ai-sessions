@@ -8,6 +8,12 @@ import { pathToFileURL } from "node:url";
 import { convertSessionFile } from "../core/convert-session.js";
 import { ConversionError } from "../core/errors.js";
 import type { UnifiedSession, UnifiedSource } from "../schema/unified-session.js";
+import {
+  openOpencodeSqliteStore,
+  resolveDefaultOpencodeDbPaths,
+  type OpenCodeSqliteStore,
+} from "../providers/opencode/sqlite.js";
+import { normalizeOpencodeExport } from "../providers/opencode/convert.js";
 
 interface CliOptions {
   readonly source: UnifiedSource;
@@ -27,6 +33,12 @@ interface CliEnvironment {
 interface ExportResult {
   readonly outputPath: string;
   readonly sessionId: string;
+}
+
+interface CliInput {
+  readonly kind: "file" | "opencode-session";
+  readonly ref: string;
+  readonly dbPath?: string;
 }
 
 const SUPPORTED_SOURCES = ["opencode", "codex", "pi", "claude", "factory"] as const;
@@ -220,20 +232,20 @@ function defaultRuntimeRoots(source: UnifiedSource, homeDir: string): string[] {
   }
 }
 
-function resolveDefaultInputFiles(source: UnifiedSource, cwd: string, homeDir: string): string[] {
+function resolveDefaultInputs(source: UnifiedSource, cwd: string, homeDir: string): CliInput[] {
   const runtimeFiles = defaultRuntimeRoots(source, homeDir).flatMap((root) =>
     listSessionFiles(source, root, isRuntimeSessionFile),
   );
 
   if (runtimeFiles.length > 0) {
-    return runtimeFiles;
+    return runtimeFiles.map((filePath) => ({ kind: "file", ref: filePath }));
   }
 
   const workspaceRoot = resolveWorkspaceRoot(cwd);
   const dataRoot = resolve(workspaceRoot, DEFAULT_INPUT_DIR, source);
   const dataFiles = listSessionFiles(source, dataRoot);
   if (dataFiles.length > 0) {
-    return dataFiles;
+    return dataFiles.map((filePath) => ({ kind: "file", ref: filePath }));
   }
 
   throw new ConversionError(
@@ -245,7 +257,7 @@ function resolveExplicitInputFiles(
   source: UnifiedSource,
   cwd: string,
   inputPath: string,
-): string[] {
+): CliInput[] {
   const targetPath = resolve(cwd, inputPath);
 
   if (!existsSync(targetPath)) {
@@ -254,11 +266,21 @@ function resolveExplicitInputFiles(
 
   const targetStat = statSync(targetPath);
   if (targetStat.isFile()) {
-    return [targetPath];
+    if (source === "opencode" && targetPath.endsWith(".db")) {
+      return [{ kind: "opencode-session", ref: "", dbPath: targetPath }];
+    }
+    return [{ kind: "file", ref: targetPath }];
   }
 
   if (!targetStat.isDirectory()) {
     throw new ConversionError(`Input path is neither a file nor a directory: ${targetPath}`);
+  }
+
+  if (source === "opencode") {
+    const installDbPath = resolve(targetPath, "opencode.db");
+    if (existsSync(installDbPath) && statSync(installDbPath).isFile()) {
+      return [{ kind: "opencode-session", ref: "", dbPath: installDbPath }];
+    }
   }
 
   const files = listSessionFiles(source, targetPath);
@@ -266,7 +288,7 @@ function resolveExplicitInputFiles(
     throw new ConversionError(`No ${source} session files found in: ${targetPath}`);
   }
 
-  return files;
+  return files.map((filePath) => ({ kind: "file", ref: filePath }));
 }
 
 function writeJson(path: string, value: UnifiedSession, pretty: boolean): void {
@@ -283,7 +305,61 @@ function formatFailure(source: UnifiedSource, inputPath: string, error: unknown)
   return `[${source}] Failed to convert ${inputPath}: ${detail}`;
 }
 
-export function runExportSessionCli(
+function convertCliInput(
+  source: UnifiedSource,
+  input: CliInput,
+  opencodeStoresByPath: ReadonlyMap<string, OpenCodeSqliteStore>,
+): UnifiedSession {
+  if (input.kind === "file") {
+    return convertSessionFile(source, input.ref);
+  }
+
+  if (source !== "opencode" || input.dbPath === undefined) {
+    throw new ConversionError(`Unsupported CLI input kind for ${source}: ${input.kind}`);
+  }
+
+  const opencodeStore = opencodeStoresByPath.get(input.dbPath);
+  if (opencodeStore === undefined) {
+    throw new ConversionError(`OpenCode database was not opened for session: ${input.ref}`);
+  }
+
+  return normalizeOpencodeExport(
+    opencodeStore.loadSessionExport(input.ref),
+    `sqlite:${opencodeStore.dbPath}:${input.ref}`,
+  );
+}
+
+async function openOpencodeStores(
+  dbPaths: readonly string[],
+): Promise<Map<string, OpenCodeSqliteStore>> {
+  const stores = new Map<string, OpenCodeSqliteStore>();
+
+  for (const dbPath of dbPaths) {
+    if (!stores.has(dbPath)) {
+      stores.set(dbPath, await openOpencodeSqliteStore(dbPath));
+    }
+  }
+
+  return stores;
+}
+
+function listOpencodeSessionInputs(stores: ReadonlyMap<string, OpenCodeSqliteStore>): CliInput[] {
+  const inputs: CliInput[] = [];
+
+  for (const [dbPath, store] of stores.entries()) {
+    for (const sessionId of store.listSessionIds()) {
+      inputs.push({
+        kind: "opencode-session",
+        ref: sessionId,
+        dbPath,
+      });
+    }
+  }
+
+  return inputs;
+}
+
+export async function runExportSessionCli(
   argv: string[],
   environment: CliEnvironment = {
     cwd: process.cwd(),
@@ -291,7 +367,7 @@ export function runExportSessionCli(
     stdout: process.stdout,
     stderr: process.stderr,
   },
-): number {
+): Promise<number> {
   let options: CliOptions;
 
   try {
@@ -314,10 +390,27 @@ export function runExportSessionCli(
 
   try {
     const workspaceRoot = resolveWorkspaceRoot(environment.cwd);
-    const inputFiles =
+    let opencodeStoresByPath = new Map<string, OpenCodeSqliteStore>();
+    let inputs =
       options.inputPath !== undefined
         ? resolveExplicitInputFiles(options.source, environment.cwd, options.inputPath)
-        : resolveDefaultInputFiles(options.source, environment.cwd, environment.homeDir);
+        : options.source === "opencode"
+          ? []
+          : resolveDefaultInputs(options.source, environment.cwd, environment.homeDir);
+
+    if (options.source === "opencode") {
+      const opencodeDbPaths =
+        options.inputPath !== undefined
+          ? [...new Set(inputs.flatMap((input) => input.dbPath ?? []))]
+          : resolveDefaultOpencodeDbPaths(environment.homeDir);
+
+      if (opencodeDbPaths.length > 0) {
+        opencodeStoresByPath = await openOpencodeStores(opencodeDbPaths);
+        const fileInputs = inputs.filter((input) => input.kind === "file");
+        inputs = [...fileInputs, ...listOpencodeSessionInputs(opencodeStoresByPath)];
+      }
+    }
+
     const outDir = resolve(
       options.outDir !== undefined ? environment.cwd : workspaceRoot,
       options.outDir ?? `${DEFAULT_OUTPUT_DIR}/${options.source}`,
@@ -326,30 +419,36 @@ export function runExportSessionCli(
     const successes: ExportResult[] = [];
     const failures: string[] = [];
 
-    for (const inputFile of inputFiles) {
-      try {
-        const session = convertSessionFile(options.source, inputFile);
-        mkdirSync(outDir, { recursive: true });
-        const outputPath = outputPathForSession(outDir, session.session.id);
+    try {
+      for (const input of inputs) {
+        try {
+          const session = convertCliInput(options.source, input, opencodeStoresByPath);
+          mkdirSync(outDir, { recursive: true });
+          const outputPath = outputPathForSession(outDir, session.session.id);
 
-        if (writtenPaths.has(outputPath)) {
-          throw new ConversionError(`Duplicate session id in this run: ${session.session.id}`);
+          if (writtenPaths.has(outputPath)) {
+            throw new ConversionError(`Duplicate session id in this run: ${session.session.id}`);
+          }
+
+          writtenPaths.add(outputPath);
+          writeJson(outputPath, session, options.pretty);
+          successes.push({
+            outputPath,
+            sessionId: session.session.id,
+          });
+        } catch (error) {
+          const failure = formatFailure(options.source, input.ref, error);
+          failures.push(failure);
+          environment.stderr.write(`${failure}\n`);
+
+          if (options.failFast) {
+            break;
+          }
         }
-
-        writtenPaths.add(outputPath);
-        writeJson(outputPath, session, options.pretty);
-        successes.push({
-          outputPath,
-          sessionId: session.session.id,
-        });
-      } catch (error) {
-        const failure = formatFailure(options.source, inputFile, error);
-        failures.push(failure);
-        environment.stderr.write(`${failure}\n`);
-
-        if (options.failFast) {
-          break;
-        }
+      }
+    } finally {
+      for (const store of opencodeStoresByPath.values()) {
+        store.close();
       }
     }
 
@@ -378,5 +477,5 @@ const isMain =
   process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
 
 if (isMain) {
-  process.exitCode = runExportSessionCli(process.argv.slice(2));
+  process.exitCode = await runExportSessionCli(process.argv.slice(2));
 }

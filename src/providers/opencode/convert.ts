@@ -305,3 +305,13 @@ export const opencodeConverter = {
     };
   },
 } as const;
+
+export function normalizeOpencodeExport(
+  exportData: OpencodeExport,
+  filePath?: string,
+): UnifiedSession {
+  return opencodeConverter.normalize({
+    exportData,
+    ...(filePath !== undefined ? { filePath } : {}),
+  });
+}

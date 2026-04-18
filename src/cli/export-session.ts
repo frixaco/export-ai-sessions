@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { homedir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { convertSessionFile } from "../core/convert-session.js";
@@ -18,6 +19,7 @@ interface CliOptions {
 
 interface CliEnvironment {
   readonly cwd: string;
+  readonly homeDir: string;
   readonly stdout: Pick<NodeJS.WriteStream, "write">;
   readonly stderr: Pick<NodeJS.WriteStream, "write">;
 }
@@ -64,6 +66,18 @@ function isSessionFile(source: UnifiedSource, filePath: string): boolean {
   return filePath.endsWith(".jsonl");
 }
 
+function isRuntimeSessionFile(source: UnifiedSource, filePath: string): boolean {
+  if (!isSessionFile(source, filePath)) {
+    return false;
+  }
+
+  if (source === "codex") {
+    return basename(filePath).startsWith("rollout-");
+  }
+
+  return true;
+}
+
 function walkFiles(directoryPath: string): string[] {
   return readdirSync(directoryPath, { withFileTypes: true }).flatMap((entry) => {
     const fullPath = resolve(directoryPath, entry.name);
@@ -72,6 +86,25 @@ function walkFiles(directoryPath: string): string[] {
     }
     return entry.isFile() ? [fullPath] : [];
   });
+}
+
+function listSessionFiles(
+  source: UnifiedSource,
+  directoryPath: string,
+  fileMatcher: (source: UnifiedSource, filePath: string) => boolean = isSessionFile,
+): string[] {
+  if (!existsSync(directoryPath)) {
+    return [];
+  }
+
+  const directoryStat = statSync(directoryPath);
+  if (!directoryStat.isDirectory()) {
+    return [];
+  }
+
+  return walkFiles(directoryPath)
+    .filter((filePath) => fileMatcher(source, filePath))
+    .sort((left, right) => left.localeCompare(right));
 }
 
 function parseArgs(argv: string[]): CliOptions {
@@ -142,11 +175,15 @@ function parseArgs(argv: string[]): CliOptions {
   };
 }
 
-function resolveDefaultRoot(source: UnifiedSource, cwd: string): string {
+function resolveWorkspaceRoot(cwd: string): string {
   let currentDirectory = resolve(cwd);
 
   while (true) {
-    if (existsSync(resolve(currentDirectory, DEFAULT_INPUT_DIR, source))) {
+    if (
+      existsSync(resolve(currentDirectory, "package.json")) ||
+      existsSync(resolve(currentDirectory, DEFAULT_OUTPUT_DIR)) ||
+      existsSync(resolve(currentDirectory, DEFAULT_INPUT_DIR))
+    ) {
       return currentDirectory;
     }
 
@@ -159,14 +196,57 @@ function resolveDefaultRoot(source: UnifiedSource, cwd: string): string {
   }
 }
 
-function resolveInputFiles(
+function defaultRuntimeRoots(source: UnifiedSource, homeDir: string): string[] {
+  switch (source) {
+    case "claude":
+      return [
+        join(homeDir, ".claude", "projects"),
+        join(homeDir, ".claude-code", "projects"),
+        join(homeDir, ".claude-local", "projects"),
+      ];
+    case "codex":
+      return [
+        join(homeDir, ".codex", "sessions"),
+        join(homeDir, ".codex", "archived_sessions"),
+        join(homeDir, ".codex-local", "sessions"),
+        join(homeDir, ".codex-local", "archived_sessions"),
+      ];
+    case "factory":
+      return [join(homeDir, ".factory", "sessions")];
+    case "pi":
+      return [join(homeDir, ".pi", "agent", "sessions")];
+    case "opencode":
+      return [];
+  }
+}
+
+function resolveDefaultInputFiles(source: UnifiedSource, cwd: string, homeDir: string): string[] {
+  const runtimeFiles = defaultRuntimeRoots(source, homeDir).flatMap((root) =>
+    listSessionFiles(source, root, isRuntimeSessionFile),
+  );
+
+  if (runtimeFiles.length > 0) {
+    return runtimeFiles;
+  }
+
+  const workspaceRoot = resolveWorkspaceRoot(cwd);
+  const dataRoot = resolve(workspaceRoot, DEFAULT_INPUT_DIR, source);
+  const dataFiles = listSessionFiles(source, dataRoot);
+  if (dataFiles.length > 0) {
+    return dataFiles;
+  }
+
+  throw new ConversionError(
+    `No default ${source} session files found in runtime locations or ${dataRoot}`,
+  );
+}
+
+function resolveExplicitInputFiles(
   source: UnifiedSource,
   cwd: string,
-  rootDir: string,
-  inputPath?: string,
+  inputPath: string,
 ): string[] {
-  const targetPath =
-    inputPath !== undefined ? resolve(cwd, inputPath) : resolve(rootDir, DEFAULT_INPUT_DIR, source);
+  const targetPath = resolve(cwd, inputPath);
 
   if (!existsSync(targetPath)) {
     throw new ConversionError(`Input path does not exist: ${targetPath}`);
@@ -181,12 +261,12 @@ function resolveInputFiles(
     throw new ConversionError(`Input path is neither a file nor a directory: ${targetPath}`);
   }
 
-  const files = walkFiles(targetPath).filter((filePath) => isSessionFile(source, filePath));
+  const files = listSessionFiles(source, targetPath);
   if (files.length === 0) {
     throw new ConversionError(`No ${source} session files found in: ${targetPath}`);
   }
 
-  return files.sort((left, right) => left.localeCompare(right));
+  return files;
 }
 
 function writeJson(path: string, value: UnifiedSession, pretty: boolean): void {
@@ -207,6 +287,7 @@ export function runExportSessionCli(
   argv: string[],
   environment: CliEnvironment = {
     cwd: process.cwd(),
+    homeDir: homedir(),
     stdout: process.stdout,
     stderr: process.stderr,
   },
@@ -232,15 +313,13 @@ export function runExportSessionCli(
   }
 
   try {
-    const rootDir = resolveDefaultRoot(options.source, environment.cwd);
-    const inputFiles = resolveInputFiles(
-      options.source,
-      environment.cwd,
-      rootDir,
-      options.inputPath,
-    );
+    const workspaceRoot = resolveWorkspaceRoot(environment.cwd);
+    const inputFiles =
+      options.inputPath !== undefined
+        ? resolveExplicitInputFiles(options.source, environment.cwd, options.inputPath)
+        : resolveDefaultInputFiles(options.source, environment.cwd, environment.homeDir);
     const outDir = resolve(
-      options.outDir !== undefined ? environment.cwd : rootDir,
+      options.outDir !== undefined ? environment.cwd : workspaceRoot,
       options.outDir ?? `${DEFAULT_OUTPUT_DIR}/${options.source}`,
     );
     const writtenPaths = new Set<string>();

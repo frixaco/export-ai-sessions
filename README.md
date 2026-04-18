@@ -47,7 +47,12 @@ npx @frixaco/shair factory
 
 Default behavior:
 
-- reads from `data/<source>/`
+- reads from the provider's real local session storage when supported:
+  - `codex`: `~/.codex/{sessions,archived_sessions}` and `~/.codex-local/...`
+  - `claude`: `~/.claude/projects`, `~/.claude-code/projects`, `~/.claude-local/projects`
+  - `factory`: `~/.factory/sessions`
+  - `pi`: `~/.pi/agent/sessions`
+- falls back to `data/<source>/` when no runtime sessions are found
 - writes normalized output to `exported/<source>/<session-id>.json`
 
 Useful options:

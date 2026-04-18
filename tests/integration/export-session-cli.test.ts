@@ -47,10 +47,11 @@ describe("export-session CLI", () => {
     const stderr = memoryWriter();
     const root = process.cwd();
     const outputRoot = tempDir();
+    const homeDir = tempDir();
     const sourcePath = resolve(root, "tests/fixtures/codex/source.jsonl");
     const exitCode = runExportSessionCli(
       ["codex", "--input", sourcePath, "--out-dir", outputRoot, "--pretty"],
-      { cwd: root, stdout, stderr },
+      { cwd: root, homeDir, stdout, stderr },
     );
 
     const outputPath = resolve(outputRoot, "codex_fixture.json");
@@ -67,6 +68,7 @@ describe("export-session CLI", () => {
 
   it("scans the default data/<source> directory and skips factory settings files", () => {
     const cwd = tempDir();
+    const homeDir = tempDir();
     const stdout = memoryWriter();
     const stderr = memoryWriter();
     const root = process.cwd();
@@ -79,7 +81,7 @@ describe("export-session CLI", () => {
     );
     writeFileSync(resolve(dataDir, "source.settings.json"), '{"ignored":true}\n', "utf8");
 
-    const exitCode = runExportSessionCli(["factory"], { cwd, stdout, stderr });
+    const exitCode = runExportSessionCli(["factory"], { cwd, homeDir, stdout, stderr });
     const outputPath = resolve(cwd, "exported", "factory", "factory_fixture.json");
 
     expect(exitCode).toBe(0);
@@ -92,9 +94,10 @@ describe("export-session CLI", () => {
     });
   });
 
-  it("finds the project root from nested directories for default input and output paths", () => {
+  it("finds the project root from nested directories for repo data fallback", () => {
     const root = process.cwd();
     const workspace = tempDir();
+    const homeDir = tempDir();
     const nestedCwd = resolve(workspace, "exported", "scratch");
     const stdout = memoryWriter();
     const stderr = memoryWriter();
@@ -107,7 +110,12 @@ describe("export-session CLI", () => {
       resolve(dataDir, "source.jsonl"),
     );
 
-    const exitCode = runExportSessionCli(["codex"], { cwd: nestedCwd, stdout, stderr });
+    const exitCode = runExportSessionCli(["codex"], {
+      cwd: nestedCwd,
+      homeDir,
+      stdout,
+      stderr,
+    });
     const outputPath = resolve(workspace, "exported", "codex", "codex_fixture.json");
 
     expect(exitCode).toBe(0);
@@ -120,12 +128,61 @@ describe("export-session CLI", () => {
     });
   });
 
+  it("prefers runtime Codex sessions from the home directory over repo fixtures", () => {
+    const root = process.cwd();
+    const workspace = tempDir();
+    const homeDir = tempDir();
+    const nestedCwd = resolve(workspace, "exported", "scratch");
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+    const runtimeDir = resolve(homeDir, ".codex", "sessions", "2026", "02", "28");
+    const fixtureDataDir = resolve(workspace, "data", "codex");
+
+    mkdirSync(runtimeDir, { recursive: true });
+    mkdirSync(fixtureDataDir, { recursive: true });
+    mkdirSync(nestedCwd, { recursive: true });
+    copyFileSync(
+      resolve(root, "tests/fixtures/codex/source.jsonl"),
+      resolve(runtimeDir, "rollout-2026-02-28T08-00-00-codex_fixture.jsonl"),
+    );
+    copyFileSync(
+      resolve(root, "tests/fixtures/codex/source.duplicates.jsonl"),
+      resolve(fixtureDataDir, "source.duplicates.jsonl"),
+    );
+
+    const exitCode = runExportSessionCli(["codex"], {
+      cwd: nestedCwd,
+      homeDir,
+      stdout,
+      stderr,
+    });
+    const outputPath = resolve(workspace, "exported", "codex", "codex_fixture.json");
+    const fallbackOutputPath = resolve(
+      workspace,
+      "exported",
+      "codex",
+      "codex_duplicate_fixture.json",
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr.text()).toBe("");
+    expect(stdout.text()).toContain("Exported 1 codex session");
+    expect(existsSync(outputPath)).toBe(true);
+    expect(existsSync(fallbackOutputPath)).toBe(false);
+    expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({
+      source: "codex",
+      session: { id: "codex_fixture" },
+    });
+  });
+
   it("returns a non-zero exit code for unsupported sources", () => {
     const stdout = memoryWriter();
     const stderr = memoryWriter();
+    const homeDir = tempDir();
 
     const exitCode = runExportSessionCli(["unknown-source"], {
       cwd: process.cwd(),
+      homeDir,
       stdout,
       stderr,
     });
@@ -138,9 +195,11 @@ describe("export-session CLI", () => {
   it("writes help text to stdout", () => {
     const stdout = memoryWriter();
     const stderr = memoryWriter();
+    const homeDir = tempDir();
 
     const exitCode = runExportSessionCli(["--help"], {
       cwd: process.cwd(),
+      homeDir,
       stdout,
       stderr,
     });

@@ -312,7 +312,7 @@
         {
           "type": "tool_result",
           "call_id": "toolu_read_1",
-          "tool_name": null,
+          "tool_name": "Read",
           "is_error": false,
           "content": "# Unified Session Shape",
           "metadata": {

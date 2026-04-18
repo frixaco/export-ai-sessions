@@ -24,10 +24,15 @@ interface ParsedClaudePayload {
   readonly filePath?: string;
 }
 
+type ClaudeToolNameByCallId = ReadonlyMap<string, string>;
+
 const CLAUDE_COMPACTION_PREFIX =
   "This session is being continued from a previous conversation that ran out of context.";
 
-function normalizeClaudeBlocks(content: unknown): UnifiedBlock[] {
+function normalizeClaudeBlocks(
+  content: unknown,
+  toolNameByCallId: ClaudeToolNameByCallId,
+): UnifiedBlock[] {
   if (typeof content === "string") {
     return [textBlock(content)];
   }
@@ -71,10 +76,11 @@ function normalizeClaudeBlocks(content: unknown): UnifiedBlock[] {
           }),
         ];
       case "tool_result":
+        const callId = typeof record.tool_use_id === "string" ? record.tool_use_id : null;
         return [
           toolResultBlock({
-            call_id: typeof record.tool_use_id === "string" ? record.tool_use_id : null,
-            tool_name: null,
+            call_id: callId,
+            tool_name: callId !== null ? (toolNameByCallId.get(callId) ?? null) : null,
             is_error: record.is_error === true,
             content: typeof record.content === "string" ? record.content : null,
             metadata: { raw: record },
@@ -161,7 +167,46 @@ function claudeMessageContent(
   return claudeContent(message?.content) ?? claudeContent(entry.content) ?? message ?? entry;
 }
 
-function itemFromClaudeEntry(entry: ClaudeEntry, index: number): UnifiedSessionItem {
+function collectClaudeToolNames(entries: ClaudeEntry[]): ClaudeToolNameByCallId {
+  const toolNames = new Map<string, string>();
+
+  for (const entry of entries) {
+    const message =
+      typeof entry.message === "object" && entry.message !== null && !Array.isArray(entry.message)
+        ? (entry.message as Record<string, unknown>)
+        : null;
+    const content = claudeMessageContent(entry, message);
+
+    if (!Array.isArray(content)) {
+      continue;
+    }
+
+    for (const item of content) {
+      if (typeof item !== "object" || item === null || Array.isArray(item)) {
+        continue;
+      }
+
+      const record = item as Record<string, unknown>;
+      if (record.type !== "tool_use") {
+        continue;
+      }
+
+      const callId = typeof record.id === "string" ? record.id : null;
+      const toolName = typeof record.name === "string" ? record.name : null;
+      if (callId !== null && toolName !== null) {
+        toolNames.set(callId, toolName);
+      }
+    }
+  }
+
+  return toolNames;
+}
+
+function itemFromClaudeEntry(
+  entry: ClaudeEntry,
+  index: number,
+  toolNameByCallId: ClaudeToolNameByCallId,
+): UnifiedSessionItem {
   const message =
     typeof entry.message === "object" && entry.message !== null && !Array.isArray(entry.message)
       ? (entry.message as Record<string, unknown>)
@@ -227,7 +272,7 @@ function itemFromClaudeEntry(entry: ClaudeEntry, index: number): UnifiedSessionI
       };
     }
 
-    const blocks = normalizeClaudeBlocks(claudeMessageContent(entry, message));
+    const blocks = normalizeClaudeBlocks(claudeMessageContent(entry, message), toolNameByCallId);
     return {
       id: baseId,
       ...(parentId !== undefined ? { parent_id: parentId } : {}),
@@ -274,7 +319,7 @@ function itemFromClaudeEntry(entry: ClaudeEntry, index: number): UnifiedSessionI
   }
 
   if (entry.isMeta === true) {
-    const blocks = normalizeClaudeBlocks(message?.content ?? message ?? entry);
+    const blocks = normalizeClaudeBlocks(message?.content ?? message ?? entry, toolNameByCallId);
     return {
       id: baseId,
       ...(parentId !== undefined ? { parent_id: parentId } : {}),
@@ -298,7 +343,7 @@ function itemFromClaudeEntry(entry: ClaudeEntry, index: number): UnifiedSessionI
     };
   }
 
-  const blocks = normalizeClaudeBlocks(message?.content ?? message ?? entry);
+  const blocks = normalizeClaudeBlocks(message?.content ?? message ?? entry, toolNameByCallId);
   const classification = classifyItemKindFromBlocks(blocks, role);
 
   return {
@@ -337,7 +382,10 @@ export const claudeConverter = {
     const cwd = entriesWithSession.find((entry) => typeof entry.cwd === "string")?.cwd ?? null;
     const gitBranch =
       entriesWithSession.find((entry) => typeof entry.gitBranch === "string")?.gitBranch ?? null;
-    const items = payload.entries.map((entry, index) => itemFromClaudeEntry(entry, index));
+    const toolNameByCallId = collectClaudeToolNames(payload.entries);
+    const items = payload.entries.map((entry, index) =>
+      itemFromClaudeEntry(entry, index, toolNameByCallId),
+    );
 
     return {
       version: UNIFIED_SESSION_VERSION,

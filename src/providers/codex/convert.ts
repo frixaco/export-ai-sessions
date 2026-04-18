@@ -26,6 +26,21 @@ interface CanonicalCandidate {
   readonly timestampMs: number | null;
 }
 
+type CodexToolNameByCallId = ReadonlyMap<string, string>;
+
+interface CodexTurnContextSnapshot {
+  readonly cwd: string | null;
+  readonly approvalPolicy: string | null;
+  readonly sandboxPolicy: unknown;
+  readonly model: string | null;
+  readonly personality: string | null;
+  readonly collaborationMode: unknown;
+  readonly effort: string | null;
+  readonly summary: string | null;
+  readonly userInstructions: string | null;
+  readonly truncationPolicy: unknown;
+}
+
 function asRecord(value: unknown): Record<string, unknown> | null {
   return typeof value === "object" && value !== null && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -77,6 +92,100 @@ function reasoningText(summary: unknown): string {
     .join("\n");
 }
 
+function codexTurnContextSnapshot(payload: Record<string, unknown>): CodexTurnContextSnapshot {
+  return {
+    cwd: typeof payload.cwd === "string" ? payload.cwd : null,
+    approvalPolicy: typeof payload.approval_policy === "string" ? payload.approval_policy : null,
+    sandboxPolicy: payload.sandbox_policy,
+    model: typeof payload.model === "string" ? payload.model : null,
+    personality: typeof payload.personality === "string" ? payload.personality : null,
+    collaborationMode: payload.collaboration_mode,
+    effort: typeof payload.effort === "string" ? payload.effort : null,
+    summary: typeof payload.summary === "string" ? payload.summary : null,
+    userInstructions:
+      typeof payload.user_instructions === "string" ? payload.user_instructions : null,
+    truncationPolicy: payload.truncation_policy,
+  };
+}
+
+function sameContextValue(left: unknown, right: unknown): boolean {
+  if (left === right) {
+    return true;
+  }
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function describeObjectValue(value: Record<string, unknown> | null): string | null {
+  if (value === null) {
+    return null;
+  }
+
+  const mode = typeof value.mode === "string" ? value.mode : null;
+  const type = typeof value.type === "string" ? value.type : null;
+  const model = typeof value.model === "string" ? value.model : null;
+  const effort = typeof value.reasoning_effort === "string" ? value.reasoning_effort : null;
+  const limit =
+    typeof value.limit === "number" || typeof value.limit === "string" ? String(value.limit) : null;
+  const parts = [mode, type, model, effort !== null ? `effort ${effort}` : null, limit];
+  const text = parts.filter((part) => part !== null).join(", ");
+  return text.length > 0 ? text : null;
+}
+
+function summarizeContextValue(field: string, value: unknown): string | null {
+  if (typeof value === "string") {
+    if (field === "user_instructions") {
+      return `updated (${value.length} chars)`;
+    }
+    return value;
+  }
+
+  const record = asRecord(value);
+  if (record !== null) {
+    const described = describeObjectValue(record);
+    return described ?? JSON.stringify(record);
+  }
+
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  return JSON.stringify(value);
+}
+
+function codexTurnContextBlocks(
+  previous: CodexTurnContextSnapshot | null,
+  current: CodexTurnContextSnapshot,
+) {
+  const fields: Array<{
+    readonly key: keyof CodexTurnContextSnapshot;
+    readonly label: string;
+  }> = [
+    { key: "cwd", label: "cwd" },
+    { key: "model", label: "model" },
+    { key: "approvalPolicy", label: "approval_policy" },
+    { key: "sandboxPolicy", label: "sandbox_policy" },
+    { key: "personality", label: "personality" },
+    { key: "collaborationMode", label: "collaboration_mode" },
+    { key: "effort", label: "effort" },
+    { key: "summary", label: "summary" },
+    { key: "userInstructions", label: "user_instructions" },
+    { key: "truncationPolicy", label: "truncation_policy" },
+  ];
+
+  return fields.flatMap(({ key, label }) => {
+    const nextValue = current[key];
+    if (nextValue === null || nextValue === undefined) {
+      return [];
+    }
+    if (previous !== null && sameContextValue(previous[key], nextValue)) {
+      return [];
+    }
+
+    const summary = summarizeContextValue(label, nextValue);
+    return summary !== null ? [textBlock(`${label}: ${summary}`, { field: label })] : [];
+  });
+}
+
 function timestampMs(value: string | undefined): number | null {
   if (value === undefined) {
     return null;
@@ -108,6 +217,7 @@ function itemFromResponseItem(
   entry: CodexEntry,
   index: number,
   currentModel: string | null,
+  toolNameByCallId: CodexToolNameByCallId,
 ): UnifiedSessionItem | null {
   const payload = entry.payload ?? {};
   const baseId =
@@ -175,6 +285,7 @@ function itemFromResponseItem(
       };
     case "function_call_output":
     case "custom_tool_call_output":
+      const callId = typeof payload.call_id === "string" ? payload.call_id : null;
       return {
         id: `${baseId}:result`,
         ...(timestamp !== null ? { timestamp } : {}),
@@ -182,8 +293,10 @@ function itemFromResponseItem(
         role: "tool",
         blocks: [
           toolResultBlock({
-            call_id: typeof payload.call_id === "string" ? payload.call_id : null,
-            tool_name: typeof payload.name === "string" ? payload.name : null,
+            call_id: callId,
+            tool_name:
+              (typeof payload.name === "string" ? payload.name : null) ??
+              (callId !== null ? (toolNameByCallId.get(callId) ?? null) : null),
             is_error: payload.is_error === true,
             content:
               typeof payload.output === "string"
@@ -335,29 +448,57 @@ export const codexConverter = {
   normalize(payload: ParsedCodexPayload): UnifiedSession {
     const sessionMetaEntry = payload.entries.find((entry) => entry.type === "session_meta");
     const sessionMeta = sessionMetaEntry?.payload ?? {};
+    const toolNameByCallId = new Map<string, string>();
     const responseCandidates = payload.entries
       .filter((entry) => entry.type === "response_item")
       .map(candidateFromResponse)
       .filter((candidate): candidate is CanonicalCandidate => candidate !== null);
 
+    for (const entry of payload.entries) {
+      if (entry.type !== "response_item") {
+        continue;
+      }
+
+      const responseType = entry.payload?.type;
+      const callId = entry.payload?.call_id;
+      const name = entry.payload?.name;
+      if (
+        (responseType === "function_call" || responseType === "custom_tool_call") &&
+        typeof callId === "string" &&
+        typeof name === "string"
+      ) {
+        toolNameByCallId.set(callId, name);
+      }
+    }
+
     const items: UnifiedSessionItem[] = [];
     let currentModel: string | null = null;
     let currentCwd: string | null = typeof sessionMeta.cwd === "string" ? sessionMeta.cwd : null;
+    let previousTurnContext: CodexTurnContextSnapshot | null = null;
 
     for (const [index, entry] of payload.entries.entries()) {
       if (entry.type === "turn_context") {
         currentModel =
           typeof entry.payload?.model === "string" ? entry.payload.model : currentModel;
         currentCwd = typeof entry.payload?.cwd === "string" ? entry.payload.cwd : currentCwd;
-        items.push({
-          id: fallbackId("codex-turn-context", index),
-          ...(normalizeTimestamp(entry.timestamp) !== null
-            ? { timestamp: normalizeTimestamp(entry.timestamp) }
-            : {}),
-          kind: "context",
-          blocks: [rawBlock(entry.payload ?? {})],
-          metadata: { raw: entry.payload ?? {} },
-        });
+
+        const payloadRecord = entry.payload ?? {};
+        const currentTurnContext = codexTurnContextSnapshot(payloadRecord);
+        const blocks = codexTurnContextBlocks(previousTurnContext, currentTurnContext);
+        previousTurnContext = currentTurnContext;
+
+        if (blocks.length > 0) {
+          items.push({
+            id: fallbackId("codex-turn-context", index),
+            ...(normalizeTimestamp(entry.timestamp) !== null
+              ? { timestamp: normalizeTimestamp(entry.timestamp) }
+              : {}),
+            kind: "context",
+            ...(currentModel !== null ? { model: currentModel } : {}),
+            blocks,
+            metadata: { raw: payloadRecord },
+          });
+        }
         continue;
       }
 
@@ -396,7 +537,7 @@ export const codexConverter = {
       }
 
       if (entry.type === "response_item") {
-        const item = itemFromResponseItem(entry, index, currentModel);
+        const item = itemFromResponseItem(entry, index, currentModel, toolNameByCallId);
         if (item !== null) {
           items.push(item);
         }

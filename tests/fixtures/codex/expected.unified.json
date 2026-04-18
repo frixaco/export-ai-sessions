@@ -118,15 +118,21 @@
       "id": "codex-turn-context:5",
       "timestamp": "2026-02-28T08:00:02.000Z",
       "kind": "context",
+      "model": "gpt-5.3-codex",
       "blocks": [
         {
-          "type": "raw",
-          "raw": {
-            "turn_id": "turn_1",
-            "cwd": "/tmp/codex",
-            "model": "gpt-5.3-codex"
-          },
-          "metadata": {}
+          "type": "text",
+          "text": "cwd: /tmp/codex",
+          "metadata": {
+            "field": "cwd"
+          }
+        },
+        {
+          "type": "text",
+          "text": "model: gpt-5.3-codex",
+          "metadata": {
+            "field": "model"
+          }
         }
       ],
       "metadata": {
@@ -213,7 +219,7 @@
         {
           "type": "tool_result",
           "call_id": "call_1",
-          "tool_name": null,
+          "tool_name": "exec_command",
           "is_error": false,
           "content": "M src/index.ts",
           "metadata": {

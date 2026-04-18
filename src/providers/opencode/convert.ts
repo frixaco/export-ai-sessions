@@ -201,9 +201,11 @@ function normalizeMessageItems(message: OpencodeMessage, index: number): Unified
 
   const normalBlocks: UnifiedBlock[] = [];
   const compactionItems: UnifiedSessionItem[] = [];
+  let compactionCount = 0;
 
   for (const [partIndex, part] of message.parts.entries()) {
     if (part.type === "compaction") {
+      compactionCount += 1;
       compactionItems.push({
         id: `${messageId}:compaction:${partIndex + 1}`,
         parent_id: parentId,
@@ -246,6 +248,18 @@ function normalizeMessageItems(message: OpencodeMessage, index: number): Unified
       blocks: normalBlocks,
       metadata: { raw: info },
     });
+  }
+
+  if (normalBlocks.length === 0 && compactionCount > 0) {
+    const [firstCompaction, ...restCompactions] = compactionItems;
+    if (firstCompaction !== undefined) {
+      items.push({
+        ...firstCompaction,
+        id: messageId,
+      });
+    }
+    items.push(...restCompactions);
+    return items;
   }
 
   items.push(...compactionItems);

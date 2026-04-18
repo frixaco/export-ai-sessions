@@ -199,7 +199,7 @@
       }
     },
     {
-      "id": "msg_compaction_1:compaction:1",
+      "id": "msg_compaction_1",
       "parent_id": "msg_tool_result_1",
       "timestamp": "2024-01-01T00:00:03.000Z",
       "kind": "compaction",

@@ -186,11 +186,17 @@ describe("provider regressions", () => {
       resolve(root, "tests/fixtures/claude/source.jsonl"),
     );
     const assistant = session.items.find((item) => item.id === "claude_assistant_mix_1");
+    const toolResult = session.items.find((item) => item.id === "claude_tool_result_1");
     const command = session.items.find((item) => item.id === "claude_compact_command_1");
     const stdout = session.items.find((item) => item.id === "claude_compact_stdout_1");
 
     expect(assistant?.kind).toBe("message");
     expect(assistant?.blocks.map((block) => block.type)).toEqual(["thinking", "tool_call", "text"]);
+    expect(toolResult?.blocks[0]).toMatchObject({
+      type: "tool_result",
+      call_id: "toolu_read_1",
+      tool_name: "Read",
+    });
     expect(command?.kind).toBe("meta");
     expect(stdout?.kind).toBe("meta");
   });
@@ -199,11 +205,16 @@ describe("provider regressions", () => {
     const session = convertSessionFile("codex", resolve(root, "tests/fixtures/codex/source.jsonl"));
     const developerMessage = session.items.find((item) => item.role === "developer");
     const search = session.items.find((item) => item.kind === "search");
+    const toolResult = session.items.find((item) => item.kind === "tool_result");
 
     expect(developerMessage).toBeDefined();
     expect(search?.blocks[0]).toMatchObject({
       type: "search",
       query: "codex duplicate suppression",
+    });
+    expect(toolResult?.blocks[0]).toMatchObject({
+      type: "tool_result",
+      tool_name: "exec_command",
     });
   });
 
@@ -256,6 +267,80 @@ describe("provider regressions", () => {
     });
   });
 
+  it("coalesces repetitive Codex turn_context items and emits concise context deltas", () => {
+    const session = convertSessionText(
+      "codex",
+      [
+        JSON.stringify({
+          timestamp: "2026-02-28T08:00:00.000Z",
+          type: "session_meta",
+          payload: { id: "codex_turn_context_deltas", cwd: "/tmp/codex" },
+        }),
+        JSON.stringify({
+          timestamp: "2026-02-28T08:00:01.000Z",
+          type: "turn_context",
+          payload: {
+            turn_id: "turn_1",
+            cwd: "/tmp/codex",
+            model: "gpt-5.3-codex",
+            approval_policy: "never",
+            sandbox_policy: { type: "danger-full-access" },
+            user_instructions: "Keep answers concise.",
+          },
+        }),
+        JSON.stringify({
+          timestamp: "2026-02-28T08:00:02.000Z",
+          type: "turn_context",
+          payload: {
+            turn_id: "turn_2",
+            cwd: "/tmp/codex",
+            model: "gpt-5.3-codex",
+            approval_policy: "never",
+            sandbox_policy: { type: "danger-full-access" },
+            user_instructions: "Keep answers concise.",
+          },
+        }),
+        JSON.stringify({
+          timestamp: "2026-02-28T08:00:03.000Z",
+          type: "turn_context",
+          payload: {
+            turn_id: "turn_3",
+            cwd: "/tmp/codex/subdir",
+            model: "gpt-5.4",
+            approval_policy: "never",
+            sandbox_policy: { type: "danger-full-access" },
+            user_instructions: "Keep answers concise.",
+            effort: "high",
+          },
+        }),
+      ].join("\n"),
+    );
+
+    const contexts = session.items.filter((item) => item.kind === "context");
+
+    expect(contexts).toHaveLength(2);
+    expect(contexts[0]?.blocks.map((block) => block.type)).toEqual([
+      "text",
+      "text",
+      "text",
+      "text",
+      "text",
+    ]);
+    expect(contexts[0]?.blocks.map((block) => ("text" in block ? block.text : null))).toEqual([
+      "cwd: /tmp/codex",
+      "model: gpt-5.3-codex",
+      "approval_policy: never",
+      "sandbox_policy: danger-full-access",
+      "user_instructions: updated (21 chars)",
+    ]);
+    expect(contexts[1]?.model).toBe("gpt-5.4");
+    expect(contexts[1]?.blocks.map((block) => ("text" in block ? block.text : null))).toEqual([
+      "cwd: /tmp/codex/subdir",
+      "model: gpt-5.4",
+      "effort: high",
+    ]);
+  });
+
   it("maps OpenCode file, patch, tool call, tool result, and compaction parts", () => {
     const session = convertSessionFile(
       "opencode",
@@ -278,6 +363,54 @@ describe("provider regressions", () => {
     expect(toolResult!.kind).toBe("tool_result");
     expect(toolResult!.blocks.map((block) => block.type)).toEqual(["tool_result"]);
     expect(compactions).toHaveLength(2);
+    expect(compactions[0]?.id).toBe("msg_compaction_1");
+    expect(compactions[1]?.id).toBe("msg_compaction_1:compaction:2");
+  });
+
+  it("preserves OpenCode compaction-only message ids as parent anchors", () => {
+    const session = convertSessionText(
+      "opencode",
+      JSON.stringify({
+        info: { id: "ses_compaction_anchor" },
+        messages: [
+          {
+            info: {
+              id: "msg_before_compaction",
+              role: "assistant",
+              time: { created: 1704067200000 },
+            },
+            parts: [{ type: "text", text: "before" }],
+          },
+          {
+            info: {
+              id: "msg_compaction_anchor",
+              role: "assistant",
+              parentID: "msg_before_compaction",
+              time: { created: 1704067201000 },
+            },
+            parts: [{ type: "compaction", auto: false }],
+          },
+          {
+            info: {
+              id: "msg_after_compaction",
+              role: "assistant",
+              parentID: "msg_compaction_anchor",
+              time: { created: 1704067202000 },
+            },
+            parts: [{ type: "text", text: "after" }],
+          },
+        ],
+      }),
+    );
+    const compaction = session.items.find((item) => item.id === "msg_compaction_anchor");
+    const after = session.items.find((item) => item.id === "msg_after_compaction");
+
+    expect(compaction?.kind).toBe("compaction");
+    expect(compaction?.blocks[0]).toMatchObject({
+      type: "compaction",
+      mode: "marker",
+    });
+    expect(after?.parent_id).toBe("msg_compaction_anchor");
   });
 
   it("reads OpenCode tool arguments and results from nested state payloads", () => {

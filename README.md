@@ -1,4 +1,4 @@
-# export-ai-sessions
+# @frixaco/shair
 
 Convert local AI agent session exports into one unified JSON shape.
 
@@ -21,14 +21,28 @@ The schema is documented in [UNIFIED_SESSION_SHAPE.md](./UNIFIED_SESSION_SHAPE.m
 
 ## CLI
 
+Published usage:
+
+```sh
+npx @frixaco/shair claude
+bunx @frixaco/shair codex
+```
+
+Local development usage:
+
+```sh
+pnpm export-session claude
+pnpm export-session codex
+```
+
 Export all checked-in sessions for one provider:
 
 ```sh
-pnpm export-session codex
-pnpm export-session claude
-pnpm export-session opencode
-pnpm export-session pi
-pnpm export-session factory
+npx @frixaco/shair codex
+npx @frixaco/shair claude
+npx @frixaco/shair opencode
+npx @frixaco/shair pi
+npx @frixaco/shair factory
 ```
 
 Default behavior:
@@ -39,21 +53,21 @@ Default behavior:
 Useful options:
 
 ```sh
-pnpm export-session codex --input tests/fixtures/codex/source.jsonl --pretty
-pnpm export-session factory --out-dir ./tmp/factory-exports
-pnpm export-session claude --fail-fast
+npx @frixaco/shair codex --input tests/fixtures/codex/source.jsonl --pretty
+npx @frixaco/shair factory --out-dir ./tmp/factory-exports
+npx @frixaco/shair claude --fail-fast
 ```
 
 Help:
 
 ```sh
-pnpm export-session --help
+npx @frixaco/shair --help
 ```
 
 ## Library API
 
 ```ts
-import { convertSessionFile, convertSessionText } from "export-ai-sessions";
+import { convertSessionFile, convertSessionText } from "@frixaco/shair";
 
 const session = convertSessionFile("codex", "path/to/session.jsonl");
 ```
@@ -78,6 +92,17 @@ Run the full verification suite:
 
 ```sh
 pnpm check
+```
+
+Publish smoke test:
+
+```sh
+pnpm pack
+tmpdir="$(mktemp -d)"
+cd "$tmpdir"
+npm init -y
+npm install /path/to/frixaco-shair-1.0.0.tgz
+npx @frixaco/shair --help
 ```
 
 ## Repo Notes

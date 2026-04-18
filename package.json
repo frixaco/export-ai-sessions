@@ -1,25 +1,57 @@
 {
-  "name": "export-ai-sessions",
-  "version": "1.0.0",
-  "description": "",
-  "keywords": [],
+  "name": "@frixaco/shair",
+  "version": "1.0.1",
+  "description": "Convert local AI agent session exports into a unified JSON schema.",
+  "keywords": [
+    "agent",
+    "ai",
+    "claude",
+    "cli",
+    "codex",
+    "factory",
+    "opencode",
+    "pi",
+    "sessions"
+  ],
+  "homepage": "https://github.com/frixaco/export-ai-sessions#readme",
+  "bugs": {
+    "url": "https://github.com/frixaco/export-ai-sessions/issues"
+  },
   "license": "ISC",
-  "author": "",
+  "author": "Shair",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/frixaco/export-ai-sessions.git"
+  },
   "bin": {
-    "export-session": "./dist/cli/export-session.js"
+    "shair": "bin/shair.js"
   },
   "files": [
+    "bin",
     "dist",
-    "README.md"
+    "README.md",
+    "UNIFIED_SESSION_SHAPE.md",
+    "LICENSE"
   ],
   "type": "module",
   "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
-    "build": "pnpm exec tsgo -p tsconfig.build.json",
+    "build": "tsgo -p tsconfig.build.json",
     "check": "pnpm lint && pnpm fmt-check && pnpm typecheck && pnpm test",
-    "export-session": "pnpm build && node dist/cli/export-session.js",
-    "prepare": "pnpm build",
-    "prepack": "pnpm build",
+    "export-session": "tsgo -p tsconfig.build.json && node dist/cli/export-session.js",
+    "prepare": "tsgo -p tsconfig.build.json",
+    "prepack": "tsgo -p tsconfig.build.json",
     "test": "vitest run",
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint",
@@ -27,14 +59,15 @@
     "fmt": "oxfmt",
     "fmt-check": "oxfmt --check"
   },
-  "dependencies": {
-    "@typescript/native-preview": "7.0.0-dev.20260414.1"
-  },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "@typescript/native-preview": "7.0.0-dev.20260414.1",
     "oxfmt": "^0.45.0",
     "oxlint": "^1.60.0",
     "vitest": "^4.1.4"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "packageManager": "pnpm@10.33.0"
 }

@@ -92,6 +92,34 @@ describe("export-session CLI", () => {
     });
   });
 
+  it("finds the project root from nested directories for default input and output paths", () => {
+    const root = process.cwd();
+    const workspace = tempDir();
+    const nestedCwd = resolve(workspace, "exported", "scratch");
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+    const dataDir = resolve(workspace, "data", "codex");
+
+    mkdirSync(dataDir, { recursive: true });
+    mkdirSync(nestedCwd, { recursive: true });
+    copyFileSync(
+      resolve(root, "tests/fixtures/codex/source.jsonl"),
+      resolve(dataDir, "source.jsonl"),
+    );
+
+    const exitCode = runExportSessionCli(["codex"], { cwd: nestedCwd, stdout, stderr });
+    const outputPath = resolve(workspace, "exported", "codex", "codex_fixture.json");
+
+    expect(exitCode).toBe(0);
+    expect(stderr.text()).toBe("");
+    expect(stdout.text()).toContain(resolve(workspace, "exported", "codex"));
+    expect(existsSync(outputPath)).toBe(true);
+    expect(JSON.parse(readFileSync(outputPath, "utf8"))).toMatchObject({
+      source: "codex",
+      session: { id: "codex_fixture" },
+    });
+  });
+
   it("returns a non-zero exit code for unsupported sources", () => {
     const stdout = memoryWriter();
     const stderr = memoryWriter();
@@ -105,5 +133,20 @@ describe("export-session CLI", () => {
     expect(exitCode).toBe(1);
     expect(stdout.text()).toBe("");
     expect(stderr.text()).toContain("Unsupported source: unknown-source");
+  });
+
+  it("writes help text to stdout", () => {
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+
+    const exitCode = runExportSessionCli(["--help"], {
+      cwd: process.cwd(),
+      stdout,
+      stderr,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.text()).toBe("");
+    expect(stdout.text()).toContain("Usage: shair <source> [options]");
   });
 });

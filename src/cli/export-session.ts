@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { convertSessionFile } from "../core/convert-session.js";
@@ -34,7 +34,7 @@ const DEFAULT_OUTPUT_DIR = "exported";
 
 function usage(): string {
   return [
-    "Usage: pnpm export-session <source> [options]",
+    "Usage: shair <source> [options]",
     "",
     "Sources:",
     `  ${SUPPORTED_SOURCES.join(", ")}`,
@@ -142,9 +142,31 @@ function parseArgs(argv: string[]): CliOptions {
   };
 }
 
-function resolveInputFiles(source: UnifiedSource, cwd: string, inputPath?: string): string[] {
+function resolveDefaultRoot(source: UnifiedSource, cwd: string): string {
+  let currentDirectory = resolve(cwd);
+
+  while (true) {
+    if (existsSync(resolve(currentDirectory, DEFAULT_INPUT_DIR, source))) {
+      return currentDirectory;
+    }
+
+    const parentDirectory = dirname(currentDirectory);
+    if (parentDirectory === currentDirectory) {
+      return resolve(cwd);
+    }
+
+    currentDirectory = parentDirectory;
+  }
+}
+
+function resolveInputFiles(
+  source: UnifiedSource,
+  cwd: string,
+  rootDir: string,
+  inputPath?: string,
+): string[] {
   const targetPath =
-    inputPath !== undefined ? resolve(cwd, inputPath) : resolve(cwd, DEFAULT_INPUT_DIR, source);
+    inputPath !== undefined ? resolve(cwd, inputPath) : resolve(rootDir, DEFAULT_INPUT_DIR, source);
 
   if (!existsSync(targetPath)) {
     throw new ConversionError(`Input path does not exist: ${targetPath}`);
@@ -195,6 +217,10 @@ export function runExportSessionCli(
     options = parseArgs(argv);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
+    if (message.startsWith("Usage:")) {
+      environment.stdout.write(`${message}\n`);
+      return 0;
+    }
     const showUsage =
       !(error instanceof ConversionError) ||
       (!message.startsWith("Usage:") && !message.startsWith("Unsupported source:"));
@@ -202,13 +228,19 @@ export function runExportSessionCli(
     if (showUsage) {
       environment.stderr.write(`\n${usage()}\n`);
     }
-    return message.startsWith("Usage:") ? 0 : 1;
+    return 1;
   }
 
   try {
-    const inputFiles = resolveInputFiles(options.source, environment.cwd, options.inputPath);
-    const outDir = resolve(
+    const rootDir = resolveDefaultRoot(options.source, environment.cwd);
+    const inputFiles = resolveInputFiles(
+      options.source,
       environment.cwd,
+      rootDir,
+      options.inputPath,
+    );
+    const outDir = resolve(
+      options.outDir !== undefined ? environment.cwd : rootDir,
       options.outDir ?? `${DEFAULT_OUTPUT_DIR}/${options.source}`,
     );
     const writtenPaths = new Set<string>();

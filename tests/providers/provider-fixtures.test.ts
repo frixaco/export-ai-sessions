@@ -29,6 +29,11 @@ const cases: Array<{
     expectedFile: "tests/fixtures/pi/expected.unified.json",
   },
   {
+    source: "pi",
+    sourceFile: "tests/fixtures/pi/source.state-parent.jsonl",
+    expectedFile: "tests/fixtures/pi/expected.state-parent.unified.json",
+  },
+  {
     source: "claude",
     sourceFile: "tests/fixtures/claude/source.jsonl",
     expectedFile: "tests/fixtures/claude/expected.unified.json",

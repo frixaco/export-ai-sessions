@@ -107,7 +107,7 @@ pnpm pack
 tmpdir="$(mktemp -d)"
 cd "$tmpdir"
 npm init -y
-npm install /path/to/frixaco-shair-1.0.0.tgz
+npm install /path/to/frixaco-shair-1.1.0.tgz
 npx @frixaco/shair --help
 ```
 

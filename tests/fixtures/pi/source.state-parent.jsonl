@@ -1,0 +1,5 @@
+{"type":"session","version":3,"id":"pi_state_parent_fixture","timestamp":"2026-04-18T12:00:00.000Z","cwd":"/tmp/pi-state-parent"}
+{"type":"model_change","id":"model_1","parentId":null,"timestamp":"2026-04-18T12:00:00.100Z","modelId":"gpt-5.4"}
+{"type":"thinking_level_change","id":"state_1","parentId":"model_1","timestamp":"2026-04-18T12:00:00.200Z","thinkingLevel":"high"}
+{"type":"message","id":"user_1","parentId":"state_1","timestamp":"2026-04-18T12:00:01.000Z","message":{"role":"user","content":[{"type":"text","text":"hello"}]}}
+{"type":"message","id":"assistant_1","parentId":"user_1","timestamp":"2026-04-18T12:00:02.000Z","message":{"role":"assistant","content":[{"type":"text","text":"hi"}]}}

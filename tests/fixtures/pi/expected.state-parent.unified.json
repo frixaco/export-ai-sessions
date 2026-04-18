@@ -1,0 +1,74 @@
+{
+  "version": 1,
+  "source": "pi",
+  "source_schema_version": "3",
+  "session": {
+    "id": "pi_state_parent_fixture",
+    "cwd": "/tmp/pi-state-parent",
+    "created_at": "2026-04-18T12:00:00.000Z",
+    "provider_version": "3",
+    "metadata": {}
+  },
+  "items": [
+    {
+      "id": "user_1",
+      "parent_id": null,
+      "timestamp": "2026-04-18T12:00:01.000Z",
+      "kind": "message",
+      "role": "user",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "hello",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "hello"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "role": "user",
+          "content": [
+            {
+              "type": "text",
+              "text": "hello"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "assistant_1",
+      "parent_id": "user_1",
+      "timestamp": "2026-04-18T12:00:02.000Z",
+      "kind": "message",
+      "role": "assistant",
+      "blocks": [
+        {
+          "type": "text",
+          "text": "hi",
+          "metadata": {
+            "raw": {
+              "type": "text",
+              "text": "hi"
+            }
+          }
+        }
+      ],
+      "metadata": {
+        "raw": {
+          "role": "assistant",
+          "content": [
+            {
+              "type": "text",
+              "text": "hi"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

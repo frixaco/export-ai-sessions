@@ -70,6 +70,60 @@ describe("provider regressions", () => {
     expect(session.items.map((item) => item.id)).toEqual(["root", "child", "orphan"]);
   });
 
+  it("repairs Pi parent links through omitted state entries", () => {
+    const session = convertSessionText(
+      "pi",
+      [
+        JSON.stringify({
+          type: "session",
+          version: 3,
+          id: "pi_state_parent_fixture",
+          timestamp: "2026-04-18T12:00:00.000Z",
+          cwd: "/tmp/pi-state-parent",
+        }),
+        JSON.stringify({
+          type: "model_change",
+          id: "model_1",
+          parentId: null,
+          timestamp: "2026-04-18T12:00:00.100Z",
+          modelId: "gpt-5.4",
+        }),
+        JSON.stringify({
+          type: "thinking_level_change",
+          id: "state_1",
+          parentId: "model_1",
+          timestamp: "2026-04-18T12:00:00.200Z",
+          thinkingLevel: "high",
+        }),
+        JSON.stringify({
+          type: "message",
+          id: "user_1",
+          parentId: "state_1",
+          timestamp: "2026-04-18T12:00:01.000Z",
+          message: {
+            role: "user",
+            content: [{ type: "text", text: "hello" }],
+          },
+        }),
+        JSON.stringify({
+          type: "message",
+          id: "assistant_1",
+          parentId: "user_1",
+          timestamp: "2026-04-18T12:00:02.000Z",
+          message: {
+            role: "assistant",
+            content: [{ type: "text", text: "hi" }],
+          },
+        }),
+      ].join("\n"),
+    );
+
+    expect(session.session.metadata).toEqual({});
+    expect(session.items.map((item) => item.id)).toEqual(["user_1", "assistant_1"]);
+    expect(session.items[0]?.parent_id).toBeNull();
+    expect(session.items[1]?.parent_id).toBe("user_1");
+  });
+
   it("preserves Claude system text and compact-boundary compaction markers", () => {
     const session = convertSessionFile(
       "claude",

@@ -1,6 +1,6 @@
 # @frixaco/shair
 
-Convert local AI agent session exports into one unified JSON shape.
+Convert local AI agent sessions into one unified JSON shape.
 
 Supported sources:
 
@@ -12,9 +12,9 @@ Supported sources:
 
 ## What it does
 
-- converts provider-specific session files into a shared block-based schema
-- validates converted sessions against the unified schema
-- exports normalized sessions through a small CLI
+- exports all detected local sessions for a provider into a shared block-based schema
+- validates every converted session against the unified schema
+- supports both CLI usage and a small library API
 - keeps provider-specific raw details in metadata for fidelity
 
 The schema is documented in [UNIFIED_SESSION_SHAPE.md](./UNIFIED_SESSION_SHAPE.md).
@@ -35,7 +35,7 @@ pnpm export-session claude
 pnpm export-session codex
 ```
 
-Export all checked-in sessions for one provider:
+Export all sessions for one provider:
 
 ```sh
 npx @frixaco/shair codex
@@ -47,14 +47,14 @@ npx @frixaco/shair factory
 
 Default behavior:
 
-- reads from the provider's real local session storage when supported:
+- reads from the provider's real local session storage first:
   - `codex`: `~/.codex/{sessions,archived_sessions}` and `~/.codex-local/...`
   - `claude`: `~/.claude/projects`, `~/.claude-code/projects`, `~/.claude-local/projects`
   - `factory`: `~/.factory/sessions`
-  - `opencode`: `~/.local/share/opencode/opencode.db` or `~/Library/Application Support/opencode/opencode.db`
+  - `opencode`: `~/.local/share/opencode/opencode.db` and `~/Library/Application Support/opencode/opencode.db` when present
   - `pi`: `~/.pi/agent/sessions`
-- falls back to `data/<source>/` when no runtime sessions are found, except `opencode`, which requires `opencode.db`
-- writes normalized output to `exported/<source>/<session-id>.json`
+- falls back to `data/<source>/` for file-backed providers when no runtime sessions are found
+- writes normalized output to `exported/<source>/<session-id>.json` under the current project/workspace root
 
 Useful options:
 
@@ -62,6 +62,13 @@ Useful options:
 npx @frixaco/shair codex --input tests/fixtures/codex/source.jsonl --pretty
 npx @frixaco/shair factory --out-dir ./tmp/factory-exports
 npx @frixaco/shair claude --fail-fast
+```
+
+OpenCode can also target a specific database file or install directory:
+
+```sh
+npx @frixaco/shair opencode --input ~/.local/share/opencode/opencode.db
+npx @frixaco/shair opencode --input ~/.local/share/opencode
 ```
 
 Help:

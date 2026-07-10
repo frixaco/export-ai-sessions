@@ -1,7 +1,12 @@
-import type { UnifiedSession, UnifiedSessionItem } from "../../schema/unified-session.js";
+import type {
+  UnifiedBlock,
+  UnifiedSession,
+  UnifiedSessionItem,
+} from "../../schema/unified-session.js";
 import { UNIFIED_SESSION_VERSION } from "../../schema/unified-session.js";
 import {
   compactionBlock,
+  imageBlock,
   rawBlock,
   searchBlock,
   textBlock,
@@ -69,6 +74,37 @@ function normalizedTextFromContent(content: unknown): string {
     })
     .filter((value) => value.length > 0)
     .join("\n");
+}
+
+function blocksFromMessageContent(
+  content: unknown,
+  messagePayload: Record<string, unknown>,
+): UnifiedBlock[] {
+  if (!Array.isArray(content)) {
+    return [];
+  }
+
+  return content.flatMap<UnifiedBlock>((block) => {
+    const record = asRecord(block);
+    if (record === null) {
+      return [];
+    }
+    if (
+      (record.type === "input_text" || record.type === "output_text") &&
+      typeof record.text === "string"
+    ) {
+      return [textBlock(record.text, { raw: messagePayload })];
+    }
+    if (record.type === "input_image") {
+      return [
+        imageBlock({
+          url: typeof record.image_url === "string" ? record.image_url : null,
+          metadata: { raw: record },
+        }),
+      ];
+    }
+    return [rawBlock(record)];
+  });
 }
 
 function reasoningText(summary: unknown): string {
@@ -229,7 +265,7 @@ function itemFromResponseItem(
 
   switch (payload.type) {
     case "message": {
-      const text = normalizedTextFromContent(payload.content);
+      const blocks = blocksFromMessageContent(payload.content, payload);
       const role = typeof payload.role === "string" ? payload.role : null;
       return {
         id: baseId,
@@ -237,7 +273,7 @@ function itemFromResponseItem(
         kind: "message",
         ...(role !== null ? { role } : {}),
         ...(currentModel !== null && role === "assistant" ? { model: currentModel } : {}),
-        blocks: text.length > 0 ? [textBlock(text, metadata)] : [rawBlock(payload)],
+        blocks: blocks.length > 0 ? blocks : [rawBlock(payload)],
         metadata,
       };
     }
@@ -255,6 +291,8 @@ function itemFromResponseItem(
     }
     case "function_call":
     case "custom_tool_call":
+    case "tool_search_call":
+    case "local_shell_call":
       return {
         id: `${baseId}:call`,
         ...(timestamp !== null ? { timestamp } : {}),
@@ -264,7 +302,14 @@ function itemFromResponseItem(
         blocks: [
           toolCallBlock({
             call_id: typeof payload.call_id === "string" ? payload.call_id : null,
-            tool_name: typeof payload.name === "string" ? payload.name : null,
+            tool_name:
+              typeof payload.name === "string"
+                ? payload.name
+                : payload.type === "tool_search_call"
+                  ? "tool_search"
+                  : payload.type === "local_shell_call"
+                    ? "local_shell"
+                    : null,
             arguments:
               (typeof payload.arguments === "string" ||
               (typeof payload.arguments === "object" &&
@@ -277,6 +322,12 @@ function itemFromResponseItem(
                 payload.input !== null &&
                 !Array.isArray(payload.input))
                 ? (payload.input as Record<string, unknown> | string | null)
+                : null) ??
+              (typeof payload.action === "string" ||
+              (typeof payload.action === "object" &&
+                payload.action !== null &&
+                !Array.isArray(payload.action))
+                ? (payload.action as Record<string, unknown> | string | null)
                 : null),
             metadata,
           }),
@@ -285,6 +336,7 @@ function itemFromResponseItem(
       };
     case "function_call_output":
     case "custom_tool_call_output":
+    case "tool_search_output":
       const callId = typeof payload.call_id === "string" ? payload.call_id : null;
       return {
         id: `${baseId}:result`,
@@ -296,14 +348,17 @@ function itemFromResponseItem(
             call_id: callId,
             tool_name:
               (typeof payload.name === "string" ? payload.name : null) ??
+              (payload.type === "tool_search_output" ? "tool_search" : null) ??
               (callId !== null ? (toolNameByCallId.get(callId) ?? null) : null),
-            is_error: payload.is_error === true,
+            is_error: payload.is_error === true || payload.status === "failed",
             content:
               typeof payload.output === "string"
                 ? payload.output
                 : typeof payload.output === "object"
                   ? JSON.stringify(payload.output)
-                  : null,
+                  : Array.isArray(payload.tools)
+                    ? JSON.stringify(payload.tools)
+                    : null,
             metadata,
           }),
         ],
@@ -338,7 +393,7 @@ function itemFromResponseItem(
       };
     default:
       return {
-        id: baseId,
+        id: `${baseId}:${typeof payload.type === "string" ? payload.type : "unknown"}:${index + 1}`,
         ...(timestamp !== null ? { timestamp } : {}),
         kind: "meta",
         blocks: [rawBlock(payload)],
@@ -402,7 +457,13 @@ function itemFromEventMessage(
     };
   }
 
-  return null;
+  return {
+    id: fallbackId(`codex-event-${eventType ?? "unknown"}`, index),
+    ...(timestamp !== null ? { timestamp } : {}),
+    kind: "meta",
+    blocks: [rawBlock(payload)],
+    metadata,
+  };
 }
 
 function candidateFromResponse(entry: CodexEntry): CanonicalCandidate | null {
@@ -463,11 +524,13 @@ export const codexConverter = {
       const callId = entry.payload?.call_id;
       const name = entry.payload?.name;
       if (
-        (responseType === "function_call" || responseType === "custom_tool_call") &&
+        (responseType === "function_call" ||
+          responseType === "custom_tool_call" ||
+          responseType === "local_shell_call") &&
         typeof callId === "string" &&
-        typeof name === "string"
+        (typeof name === "string" || responseType === "local_shell_call")
       ) {
-        toolNameByCallId.set(callId, name);
+        toolNameByCallId.set(callId, typeof name === "string" ? name : "local_shell");
       }
     }
 
@@ -596,7 +659,18 @@ export const codexConverter = {
         if (item !== null) {
           items.push(item);
         }
+        continue;
       }
+
+      items.push({
+        id: fallbackId(`codex-${entry.type}`, index),
+        ...(normalizeTimestamp(entry.timestamp) !== null
+          ? { timestamp: normalizeTimestamp(entry.timestamp) }
+          : {}),
+        kind: "meta",
+        blocks: [rawBlock(entry.payload ?? entry)],
+        metadata: { raw: entry.payload ?? entry },
+      });
     }
 
     return {

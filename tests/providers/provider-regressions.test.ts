@@ -51,23 +51,74 @@ describe("provider regressions", () => {
     expect(toolResult?.blocks.some((block) => block.type === "image")).toBe(true);
   });
 
-  it("exports only the active Pi branch", () => {
+  it("exports every Pi branch in source order", () => {
     const session = convertSessionFile(
       "pi",
       resolve(root, "tests/fixtures/pi/source.active-branch.jsonl"),
     );
 
-    expect(session.items.map((item) => item.id)).toEqual(["root", "branch_b"]);
+    expect(session.items.map((item) => item.id)).toEqual(["root", "branch_a", "branch_b"]);
   });
 
-  it("falls back to source order when Pi branch linkage is broken", () => {
+  it("keeps Pi entries with broken branch linkage in source order", () => {
     const session = convertSessionFile(
       "pi",
       resolve(root, "tests/fixtures/pi/source.broken-linkage.jsonl"),
     );
 
-    expect(session.session.metadata).toEqual({ branch_linkage_broken: true });
+    expect(session.session.metadata).toEqual({});
     expect(session.items.map((item) => item.id)).toEqual(["root", "child", "orphan"]);
+  });
+
+  it("exports historical Pi messages without ids", () => {
+    const session = convertSessionText(
+      "pi",
+      [
+        JSON.stringify({ type: "session", id: "pi_idless" }),
+        JSON.stringify({
+          type: "message",
+          message: { role: "user", content: [{ type: "text", text: "hello" }] },
+        }),
+        JSON.stringify({
+          type: "message",
+          message: { role: "assistant", content: [{ type: "text", text: "hi" }] },
+        }),
+      ].join("\n"),
+    );
+
+    expect(session.items.map((item) => item.id)).toEqual(["pi-message:1", "pi-message:2"]);
+  });
+
+  it("maps Pi interactive bash history without inventing a tool call", () => {
+    const session = convertSessionText(
+      "pi",
+      [
+        JSON.stringify({ type: "session", id: "pi_bash" }),
+        JSON.stringify({
+          type: "message",
+          id: "bash_1",
+          message: {
+            role: "bashExecution",
+            command: "false",
+            output: "failed",
+            exitCode: 1,
+            cancelled: false,
+          },
+        }),
+      ].join("\n"),
+    );
+
+    expect(session.items[0]).toMatchObject({
+      id: "bash_1",
+      kind: "message",
+      role: "user",
+      blocks: [
+        {
+          type: "text",
+          text: "$ false\nfailed\n[exit code: 1]",
+        },
+      ],
+    });
   });
 
   it("repairs Pi parent links through omitted state entries", () => {
@@ -321,6 +372,122 @@ describe("provider regressions", () => {
     });
   });
 
+  it("maps Codex tool-search pairs without colliding ids", () => {
+    const session = convertSessionText(
+      "codex",
+      [
+        JSON.stringify({ type: "session_meta", payload: { id: "codex_tool_search" } }),
+        JSON.stringify({
+          type: "response_item",
+          payload: {
+            type: "tool_search_call",
+            call_id: "call_search_1",
+            status: "completed",
+            execution: "server",
+            arguments: { query: "terminal", limit: 2 },
+          },
+        }),
+        JSON.stringify({
+          type: "response_item",
+          payload: {
+            type: "tool_search_output",
+            call_id: "call_search_1",
+            status: "completed",
+            execution: "server",
+            tools: [{ name: "shell_command" }],
+          },
+        }),
+      ].join("\n"),
+    );
+
+    expect(session.items.slice(1).map((item) => item.id)).toEqual([
+      "call_search_1:call",
+      "call_search_1:result",
+    ]);
+    expect(session.items[1]?.blocks[0]).toMatchObject({
+      type: "tool_call",
+      call_id: "call_search_1",
+      tool_name: "tool_search",
+      arguments: { query: "terminal", limit: 2 },
+    });
+    expect(session.items[2]?.blocks[0]).toMatchObject({
+      type: "tool_result",
+      call_id: "call_search_1",
+      tool_name: "tool_search",
+      content: JSON.stringify([{ name: "shell_command" }]),
+    });
+  });
+
+  it("maps Codex local shell calls and correlates their output", () => {
+    const session = convertSessionText(
+      "codex",
+      [
+        JSON.stringify({ type: "session_meta", payload: { id: "codex_local_shell" } }),
+        JSON.stringify({
+          type: "response_item",
+          payload: {
+            type: "local_shell_call",
+            call_id: "call_shell_1",
+            action: { type: "exec", command: ["pwd"] },
+          },
+        }),
+        JSON.stringify({
+          type: "response_item",
+          payload: {
+            type: "function_call_output",
+            call_id: "call_shell_1",
+            output: "/tmp\n",
+          },
+        }),
+      ].join("\n"),
+    );
+
+    expect(session.items[1]?.blocks[0]).toMatchObject({
+      type: "tool_call",
+      call_id: "call_shell_1",
+      tool_name: "local_shell",
+      arguments: { type: "exec", command: ["pwd"] },
+    });
+    expect(session.items[2]?.blocks[0]).toMatchObject({
+      type: "tool_result",
+      call_id: "call_shell_1",
+      tool_name: "local_shell",
+      content: "/tmp\n",
+    });
+  });
+
+  it("preserves Codex image message blocks and unknown events", () => {
+    const session = convertSessionText(
+      "codex",
+      [
+        JSON.stringify({ type: "session_meta", payload: { id: "codex_new_variants" } }),
+        JSON.stringify({
+          type: "response_item",
+          payload: {
+            type: "message",
+            id: "msg_image",
+            role: "user",
+            content: [
+              { type: "input_text", text: "inspect this" },
+              { type: "input_image", image_url: "data:image/png;base64,abc", detail: "auto" },
+            ],
+          },
+        }),
+        JSON.stringify({
+          type: "event_msg",
+          payload: { type: "thread_name_updated", name: "New name" },
+        }),
+        JSON.stringify({ type: "world_state", payload: { state: "saved" } }),
+      ].join("\n"),
+    );
+
+    expect(session.items.find((item) => item.id === "msg_image")?.blocks).toMatchObject([
+      { type: "text", text: "inspect this" },
+      { type: "image", url: "data:image/png;base64,abc" },
+    ]);
+    expect(session.items.filter((item) => item.kind === "meta")).toHaveLength(3);
+  });
+
   it("coalesces repetitive Codex turn_context items and emits concise context deltas", () => {
     const session = convertSessionText(
       "codex",
@@ -528,6 +695,92 @@ describe("provider regressions", () => {
       content: JSON.stringify({
         matches: ["src/providers/opencode/convert.ts:87"],
       }),
+    });
+  });
+
+  it("maps current OpenCode reasoning, failed tools, and file names", () => {
+    const session = convertSessionText(
+      "opencode",
+      JSON.stringify({
+        info: { id: "ses_current_parts", parentID: "ses_parent" },
+        messages: [
+          {
+            info: { id: "msg_reasoning", role: "assistant" },
+            parts: [{ type: "reasoning", text: "Check the state." }],
+          },
+          {
+            info: { id: "msg_error", role: "assistant" },
+            parts: [
+              {
+                type: "tool",
+                callID: "call_error_1",
+                tool: "edit",
+                state: {
+                  status: "error",
+                  input: { filePath: "src/index.ts" },
+                  error: "oldString not found",
+                },
+              },
+            ],
+          },
+          {
+            info: { id: "msg_file", role: "user" },
+            parts: [
+              {
+                type: "file",
+                filename: "image.png",
+                mime: "image/png",
+                url: "data:image/png;base64,abc",
+                source: { type: "file" },
+              },
+            ],
+          },
+          {
+            info: {
+              id: "msg_partless",
+              role: "assistant",
+              finish: "error",
+              error: { name: "ProviderError", message: "request failed" },
+            },
+            parts: [],
+          },
+        ],
+      }),
+    );
+
+    expect(session.session.parent_session_id).toBe("ses_parent");
+    expect(session.items[0]).toMatchObject({
+      kind: "reasoning",
+      blocks: [{ type: "thinking", text: "Check the state." }],
+    });
+    expect(session.items[1]).toMatchObject({
+      kind: "message",
+      role: "assistant",
+      blocks: [
+        {
+          type: "tool_call",
+          call_id: "call_error_1",
+          tool_name: "edit",
+          arguments: { filePath: "src/index.ts" },
+        },
+        {
+          type: "tool_result",
+          call_id: "call_error_1",
+          tool_name: "edit",
+          is_error: true,
+          content: "oldString not found",
+        },
+      ],
+    });
+    expect(session.items[2]?.blocks[0]).toMatchObject({
+      type: "file_ref",
+      label: "image.png",
+      mime: "image/png",
+    });
+    expect(session.items[3]).toMatchObject({
+      id: "msg_partless",
+      kind: "meta",
+      blocks: [{ type: "raw", raw: { finish: "error" } }],
     });
   });
 });

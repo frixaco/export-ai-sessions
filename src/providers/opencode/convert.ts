@@ -11,9 +11,11 @@ import {
   rawBlock,
   stepBlock,
   textBlock,
+  thinkingBlock,
   toolCallBlock,
   toolResultBlock,
 } from "../shared/blocks.js";
+import { classifyItemKindFromBlocks } from "../shared/classify-item-kind.js";
 import { parseJson } from "../shared/json.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
 import type { OpencodeExport, OpencodeMessage } from "./types.js";
@@ -62,7 +64,7 @@ function toolContentValue(value: unknown): string | null {
 function normalizeOpencodeBlock(
   part: Record<string, unknown>,
   role: string | null,
-): UnifiedBlock | null {
+): UnifiedBlock | UnifiedBlock[] | null {
   switch (part.type) {
     case "text":
       return typeof part.text === "string" ? textBlock(part.text, { raw: part }) : null;
@@ -84,9 +86,11 @@ function normalizeOpencodeBlock(
         label:
           typeof part.label === "string"
             ? part.label
-            : typeof part.text === "string"
-              ? part.text
-              : null,
+            : typeof part.filename === "string"
+              ? part.filename
+              : typeof part.text === "string"
+                ? part.text
+                : null,
         metadata: { raw: part },
       });
     case "patch": {
@@ -122,34 +126,49 @@ function normalizeOpencodeBlock(
                     ? state.id
                     : null;
       const outputValue =
-        "output" in part
-          ? part.output
-          : "result" in part
-            ? part.result
-            : state !== null && "output" in state
-              ? state.output
-              : state !== null && "result" in state
-                ? state.result
-                : null;
-      const hasOutput =
-        "output" in part ||
-        "result" in part ||
-        (state !== null && ("output" in state || "result" in state)) ||
-        role === "tool";
-      if (hasOutput) {
-        return toolResultBlock({
-          call_id: callId,
-          tool_name: toolName,
-          is_error: part.isError === true || state?.isError === true,
-          content: toolContentValue(outputValue),
-          metadata: { raw: part },
-        });
-      }
+        state?.status === "error" && "error" in state
+          ? state.error
+          : "output" in part
+            ? part.output
+            : "result" in part
+              ? part.result
+              : state !== null && "output" in state
+                ? state.output
+                : state !== null && "result" in state
+                  ? state.result
+                  : null;
       const argumentsValue =
         toolArgumentValue(part.input) ??
         toolArgumentValue(part.arguments) ??
         toolArgumentValue(state?.input) ??
         toolArgumentValue(state?.arguments);
+      const hasOutput =
+        "output" in part ||
+        "result" in part ||
+        (state !== null && ("output" in state || "result" in state)) ||
+        state?.status === "error" ||
+        role === "tool";
+      if (hasOutput) {
+        const resultBlock = toolResultBlock({
+          call_id: callId,
+          tool_name: toolName,
+          is_error: part.isError === true || state?.isError === true || state?.status === "error",
+          content: toolContentValue(outputValue),
+          metadata: { raw: part },
+        });
+        if (argumentsValue !== null) {
+          return [
+            toolCallBlock({
+              call_id: callId,
+              tool_name: toolName,
+              arguments: argumentsValue,
+              metadata: { raw: part },
+            }),
+            resultBlock,
+          ];
+        }
+        return resultBlock;
+      }
       return toolCallBlock({
         call_id: callId,
         tool_name: toolName,
@@ -157,6 +176,14 @@ function normalizeOpencodeBlock(
         metadata: { raw: part },
       });
     }
+    case "reasoning":
+      return typeof part.text === "string"
+        ? thinkingBlock(part.text, null, { raw: part })
+        : rawBlock(part);
+    case "subtask":
+      return typeof part.prompt === "string"
+        ? textBlock(part.prompt, { raw: part })
+        : rawBlock(part);
     case "step-start":
       return stepBlock("step", "start", { raw: part });
     case "step-finish":
@@ -228,19 +255,22 @@ function normalizeMessageItems(message: OpencodeMessage, index: number): Unified
     }
 
     const block = normalizeOpencodeBlock(part, role);
-    if (block !== null) {
+    if (Array.isArray(block)) {
+      normalBlocks.push(...block);
+    } else if (block !== null) {
       normalBlocks.push(block);
     }
   }
 
   const items: UnifiedSessionItem[] = [];
   if (normalBlocks.length > 0) {
+    const classification = classifyItemKindFromBlocks(normalBlocks, role);
     items.push({
       id: messageId,
       ...(parentId !== null ? { parent_id: parentId } : {}),
       ...(timestamp !== null ? { timestamp } : {}),
-      kind: role === "tool" ? "tool_result" : "message",
-      ...(role !== null ? { role } : {}),
+      kind: classification.kind,
+      ...(classification.role !== null ? { role: classification.role } : {}),
       ...(model !== null ? { model } : {}),
       ...(provider !== null ? { provider } : {}),
       ...(agent !== null ? { agent } : {}),
@@ -260,6 +290,22 @@ function normalizeMessageItems(message: OpencodeMessage, index: number): Unified
     }
     items.push(...restCompactions);
     return items;
+  }
+
+  if (normalBlocks.length === 0) {
+    items.push({
+      id: messageId,
+      ...(parentId !== null ? { parent_id: parentId } : {}),
+      ...(timestamp !== null ? { timestamp } : {}),
+      kind: "meta",
+      ...(role !== null ? { role } : {}),
+      ...(model !== null ? { model } : {}),
+      ...(provider !== null ? { provider } : {}),
+      ...(agent !== null ? { agent } : {}),
+      ...(usage !== null ? { usage } : {}),
+      blocks: [rawBlock(info)],
+      metadata: { raw: info },
+    });
   }
 
   items.push(...compactionItems);
@@ -286,6 +332,7 @@ export const opencodeConverter = {
       ...(data.info.version ? { source_schema_version: data.info.version } : {}),
       session: {
         id: data.info.id,
+        ...(data.info.parentID !== undefined ? { parent_session_id: data.info.parentID } : {}),
         ...(data.info.title !== undefined ? { title: data.info.title } : {}),
         ...(data.info.directory !== undefined ? { cwd: data.info.directory } : {}),
         ...(normalizeTimestamp(data.info.time?.created) !== null
@@ -299,6 +346,7 @@ export const opencodeConverter = {
           ...(data.info.slug !== undefined ? { slug: data.info.slug } : {}),
           ...(data.info.projectID !== undefined ? { project_id: data.info.projectID } : {}),
           ...(data.info.summary !== undefined ? { summary: data.info.summary } : {}),
+          ...data.info.metadata,
         },
       },
       items,

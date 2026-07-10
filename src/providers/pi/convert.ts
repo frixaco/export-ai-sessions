@@ -24,11 +24,6 @@ interface ParsedPiPayload {
   readonly filePath?: string;
 }
 
-interface PiBranchSelection {
-  readonly branch: PiEntry[];
-  readonly linkageBroken: boolean;
-}
-
 function normalizePiContent(content: unknown): UnifiedBlock[] {
   if (typeof content === "string") {
     return [textBlock(content)];
@@ -92,61 +87,6 @@ function exportableEntry(entry: PiEntry): boolean {
 
 function entryId(entry: PiEntry): string | null {
   return typeof entry.id === "string" ? entry.id : null;
-}
-
-function buildActiveBranch(entries: PiEntry[]): PiBranchSelection {
-  const exportableEntries = entries.filter(
-    (entry) => exportableEntry(entry) && typeof entry.id === "string",
-  );
-  const entryById = new Map(
-    entries
-      .map((entry) => [entryId(entry), entry] as const)
-      .filter((pair): pair is readonly [string, PiEntry] => pair[0] !== null),
-  );
-  const leaf = exportableEntries.at(-1);
-
-  if (leaf === undefined) {
-    return { branch: [], linkageBroken: false };
-  }
-
-  const branch: PiEntry[] = [];
-  let current: PiEntry | undefined = leaf;
-  let linkageBroken = false;
-  const visited = new Set<string>();
-
-  while (current !== undefined) {
-    const currentId = entryId(current);
-
-    if (currentId !== null) {
-      if (visited.has(currentId)) {
-        linkageBroken = true;
-        break;
-      }
-      visited.add(currentId);
-    }
-
-    if (exportableEntry(current)) {
-      branch.unshift(current);
-    }
-
-    if (current.parentId === null || current.parentId === undefined) {
-      break;
-    }
-    current = entryById.get(current.parentId);
-    if (current === undefined) {
-      linkageBroken = true;
-      break;
-    }
-  }
-
-  if (linkageBroken) {
-    return {
-      branch: entries.filter((entry) => exportableEntry(entry)),
-      linkageBroken: true,
-    };
-  }
-
-  return { branch, linkageBroken };
 }
 
 function resolveExportedParentId(
@@ -226,6 +166,32 @@ function itemFromPiEntry(
   const provider = typeof message.provider === "string" ? message.provider : null;
   const model = typeof message.model === "string" ? message.model : null;
 
+  if (role === "bashExecution") {
+    const exitCode = typeof message.exitCode === "number" ? message.exitCode : null;
+    const text = [
+      typeof message.command === "string" ? `$ ${message.command}` : null,
+      typeof message.output === "string" ? message.output : null,
+      message.cancelled === true
+        ? "[cancelled]"
+        : exitCode !== null
+          ? `[exit code: ${exitCode}]`
+          : null,
+      message.truncated === true ? "[output truncated]" : null,
+    ]
+      .filter((value): value is string => value !== null)
+      .join("\n");
+    const excluded = message.excludeFromContext === true;
+    return {
+      id: entry.id ?? fallbackId("pi-bash-execution", index),
+      ...(parentId !== undefined ? { parent_id: parentId } : {}),
+      ...(timestamp !== null ? { timestamp } : {}),
+      kind: excluded ? "meta" : "message",
+      ...(!excluded ? { role: "user" } : {}),
+      blocks: [textBlock(text, { raw: message })],
+      metadata: { raw: message },
+    };
+  }
+
   if (role === "toolResult") {
     const toolResultBlocks: UnifiedBlock[] = [
       toolResultBlock({
@@ -284,21 +250,20 @@ export const piConverter = {
 
   normalize(payload: ParsedPiPayload): UnifiedSession {
     const header = payload.entries.find((entry) => entry.type === "session");
-    const { branch, linkageBroken } = buildActiveBranch(payload.entries);
+    const exportableEntries = payload.entries.filter((entry) => exportableEntry(entry));
     const allEntriesById = new Map(
       payload.entries
         .map((entry) => [entryId(entry), entry] as const)
         .filter((pair): pair is readonly [string, PiEntry] => pair[0] !== null),
     );
     const retainedIds = new Set(
-      branch.map((entry) => entryId(entry)).filter((id): id is string => id !== null),
+      exportableEntries.map((entry) => entryId(entry)).filter((id): id is string => id !== null),
     );
-    const items = branch
+    const items = exportableEntries
       .map((entry, index) =>
         itemFromPiEntry(entry, index, resolveExportedParentId(entry, retainedIds, allEntriesById)),
       )
       .filter((item): item is UnifiedSessionItem => item !== null);
-    const sessionMetadata = linkageBroken ? { branch_linkage_broken: true } : {};
 
     return {
       version: UNIFIED_SESSION_VERSION,
@@ -315,7 +280,7 @@ export const piConverter = {
         ...(typeof header?.version === "number"
           ? { provider_version: String(header.version) }
           : {}),
-        metadata: sessionMetadata,
+        metadata: {},
       },
       items,
     };

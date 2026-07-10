@@ -12,16 +12,33 @@ import type { OpencodeExport, OpencodeMessage } from "./types.js";
 interface SessionRow {
   readonly id: string;
   readonly project_id: string;
+  readonly parent_id: string | null;
   readonly slug: string;
   readonly directory: string;
   readonly title: string;
   readonly version: string;
+  readonly share_url: string | null;
   readonly summary_additions: number | null;
   readonly summary_deletions: number | null;
   readonly summary_files: number | null;
   readonly summary_diffs: string | null;
+  readonly revert: string | null;
+  readonly permission: string | null;
   readonly time_created: number;
   readonly time_updated: number;
+  readonly time_compacting: number | null;
+  readonly time_archived: number | null;
+  readonly workspace_id: string | null;
+  readonly path: string | null;
+  readonly agent: string | null;
+  readonly model: string | null;
+  readonly cost: number | null;
+  readonly tokens_input: number | null;
+  readonly tokens_output: number | null;
+  readonly tokens_reasoning: number | null;
+  readonly tokens_cache_read: number | null;
+  readonly tokens_cache_write: number | null;
+  readonly metadata: string | null;
 }
 
 interface MessageRow {
@@ -118,15 +135,50 @@ function validateSchema(database: Database): void {
       throw new ConversionError(`OpenCode database is missing required table: ${requiredTable}`);
     }
   }
+
+  const requiredColumnsByTable = {
+    session: [
+      "id",
+      "project_id",
+      "slug",
+      "directory",
+      "title",
+      "version",
+      "time_created",
+      "time_updated",
+    ],
+    message: ["id", "session_id", "time_created", "time_updated", "data"],
+    part: ["id", "message_id", "session_id", "time_created", "time_updated", "data"],
+  } as const;
+
+  for (const [table, requiredColumns] of Object.entries(requiredColumnsByTable)) {
+    const columns = tableColumns(database, table);
+    for (const requiredColumn of requiredColumns) {
+      if (!columns.has(requiredColumn)) {
+        throw new ConversionError(
+          `OpenCode database table ${table} is missing required column: ${requiredColumn}`,
+        );
+      }
+    }
+  }
 }
 
 function loadSessionExport(database: Database, sessionId: string): OpencodeExport {
+  const sessionColumns = tableColumns(database, "session");
+  const optionalColumn = (name: string): string =>
+    sessionColumns.has(name) ? name : `NULL AS ${name}`;
   const sessionRow = queryOne<SessionRow>(
     database,
     [
-      "SELECT id, project_id, slug, directory, title, version,",
+      `SELECT id, project_id, ${optionalColumn("parent_id")}, slug, directory, title, version,`,
+      `${optionalColumn("share_url")}, ${optionalColumn("revert")}, ${optionalColumn("permission")},`,
       "summary_additions, summary_deletions, summary_files, summary_diffs,",
-      "time_created, time_updated",
+      `${optionalColumn("workspace_id")}, ${optionalColumn("path")}, ${optionalColumn("agent")},`,
+      `${optionalColumn("model")}, ${optionalColumn("cost")}, ${optionalColumn("tokens_input")},`,
+      `${optionalColumn("tokens_output")}, ${optionalColumn("tokens_reasoning")},`,
+      `${optionalColumn("tokens_cache_read")}, ${optionalColumn("tokens_cache_write")},`,
+      `${optionalColumn("metadata")},`,
+      `time_created, time_updated, ${optionalColumn("time_compacting")}, ${optionalColumn("time_archived")}`,
       "FROM session",
       "WHERE id = ?",
     ].join(" "),
@@ -155,7 +207,12 @@ function loadSessionExport(database: Database, sessionId: string): OpencodeExpor
       `OpenCode part ${partRow.id} in session ${sessionId}`,
     );
     const existingParts = partsByMessageId.get(partRow.message_id) ?? [];
-    existingParts.push(parsedPart);
+    existingParts.push({
+      ...parsedPart,
+      id: partRow.id,
+      messageID: partRow.message_id,
+      sessionID: sessionId,
+    });
     partsByMessageId.set(partRow.message_id, existingParts);
   }
 
@@ -181,6 +238,8 @@ function loadSessionExport(database: Database, sessionId: string): OpencodeExpor
 
 function adaptSessionInfo(row: SessionRow): OpencodeExport["info"] {
   const summary: Record<string, unknown> = {};
+  const metadata: Record<string, unknown> = {};
+  const usage: Record<string, unknown> = {};
 
   if (row.summary_additions !== null) {
     summary.additions = row.summary_additions;
@@ -194,20 +253,75 @@ function adaptSessionInfo(row: SessionRow): OpencodeExport["info"] {
   if (row.summary_diffs !== null) {
     summary.diffs = parsePossiblyJson(row.summary_diffs);
   }
+  if (row.path !== null) {
+    metadata.path = row.path;
+  }
+  if (row.agent !== null) {
+    metadata.agent = row.agent;
+  }
+  if (row.model !== null) {
+    metadata.model = parsePossiblyJson(row.model);
+  }
+  if (row.workspace_id !== null) {
+    metadata.workspace_id = row.workspace_id;
+  }
+  if (row.share_url !== null) {
+    metadata.share_url = row.share_url;
+  }
+  if (row.revert !== null) {
+    metadata.revert = parsePossiblyJson(row.revert);
+  }
+  if (row.permission !== null) {
+    metadata.permission = parsePossiblyJson(row.permission);
+  }
+  if (row.time_compacting !== null) {
+    metadata.time_compacting = row.time_compacting;
+  }
+  if (row.time_archived !== null) {
+    metadata.time_archived = row.time_archived;
+  }
+  if (row.metadata !== null) {
+    metadata.raw = parsePossiblyJson(row.metadata);
+  }
+  if (row.cost !== null) {
+    usage.cost = row.cost;
+  }
+  for (const [key, value] of [
+    ["input", row.tokens_input],
+    ["output", row.tokens_output],
+    ["reasoning", row.tokens_reasoning],
+    ["cache_read", row.tokens_cache_read],
+    ["cache_write", row.tokens_cache_write],
+  ] as const) {
+    if (value !== null) {
+      usage[key] = value;
+    }
+  }
+  if (Object.keys(usage).length > 0) {
+    metadata.usage = usage;
+  }
 
   return {
     id: row.id,
+    ...(row.parent_id !== null ? { parentID: row.parent_id } : {}),
     slug: row.slug,
     projectID: row.project_id,
     directory: row.directory,
     title: row.title,
     version: row.version,
     ...(Object.keys(summary).length > 0 ? { summary } : {}),
+    ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
     time: {
       created: row.time_created,
       updated: row.time_updated,
     },
   };
+}
+
+function tableColumns(database: Database, table: string): Set<string> {
+  return new Set(
+    queryRows<{ name: string }>(database, `PRAGMA table_info(${table})`).map((row) => row.name),
+  );
 }
 
 function adaptMessageRow(row: MessageRow, parts: Record<string, unknown>[]): OpencodeMessage {

@@ -84,8 +84,8 @@ async function createOpencodeDb(
       share_url, summary_additions, summary_deletions, summary_files, summary_diffs,
       revert, permission, time_created, time_updated, time_compacting, time_archived, workspace_id
     ) VALUES
-      ('ses_a', 'proj_1', NULL, 'alpha', '/tmp/a', 'Session A', '1.2.3', NULL, 5, 2, 1, NULL, NULL, NULL, 1000, 2000, NULL, NULL, NULL),
-      ('ses_b', 'proj_1', NULL, 'beta', '/tmp/b', 'Session B', '1.2.3', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3000, 4000, NULL, NULL, NULL);
+      ('ses_a', 'proj_1', NULL, 'alpha', '/tmp/a', 'Session A', '1.2.3', 'https://example.test/share', 5, 2, 1, NULL, '{"messageID":"msg_old"}', '{"read":"allow"}', 1000, 2000, 1500, NULL, 'workspace_1'),
+      ('ses_b', 'proj_1', 'ses_a', 'beta', '/tmp/b', 'Session B', '1.2.3', NULL, NULL, NULL, NULL, NULL, NULL, NULL, 3000, 4000, NULL, NULL, NULL);
   `);
 
   const messageJson =
@@ -165,6 +165,13 @@ describe("opencode sqlite loader", () => {
           deletions: 2,
           files: 1,
         },
+        metadata: {
+          share_url: "https://example.test/share",
+          revert: { messageID: "msg_old" },
+          permission: { read: "allow" },
+          time_compacting: 1500,
+          workspace_id: "workspace_1",
+        },
         time: {
           created: 1000,
           updated: 2000,
@@ -188,9 +195,21 @@ describe("opencode sqlite loader", () => {
         },
       });
       expect(session.messages[0]?.parts).toEqual([
-        { type: "step-start" },
-        { type: "text", text: "hello sqlite" },
+        {
+          type: "step-start",
+          id: "prt_a_1",
+          messageID: "msg_a_1",
+          sessionID: "ses_a",
+        },
+        {
+          type: "text",
+          text: "hello sqlite",
+          id: "prt_a_2",
+          messageID: "msg_a_1",
+          sessionID: "ses_a",
+        },
       ]);
+      expect(store.loadSessionExport("ses_b").info.parentID).toBe("ses_a");
     } finally {
       store.close();
     }

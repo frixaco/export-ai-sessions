@@ -6,7 +6,6 @@ import type { Database, SqlJsStatic } from "sql.js";
 import initSqlJs from "sql.js";
 
 import { ConversionError } from "../../core/errors.js";
-import { asObject, parseJson } from "../shared/json.js";
 import type { OpencodeExport, OpencodeMessage } from "./types.js";
 
 interface SessionRow {
@@ -355,7 +354,11 @@ function asOptionalObject(value: unknown): Record<string, unknown> | null {
 
 function parseObjectJson(input: string, label: string): Record<string, unknown> {
   try {
-    return asObject(parseJson(input));
+    const parsed = asOptionalObject(JSON.parse(input));
+    if (parsed === null) {
+      throw new Error("Expected an object");
+    }
+    return parsed;
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new ConversionError(`${label} contains invalid JSON: ${detail}`);
@@ -364,7 +367,7 @@ function parseObjectJson(input: string, label: string): Record<string, unknown> 
 
 function parsePossiblyJson(input: string): unknown {
   try {
-    return parseJson(input);
+    return JSON.parse(input);
   } catch {
     return input;
   }

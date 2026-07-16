@@ -16,7 +16,6 @@ import {
   toolResultBlock,
 } from "../shared/blocks.js";
 import { classifyItemKindFromBlocks } from "../shared/classify-item-kind.js";
-import { parseJson } from "../shared/json.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
 import type { OpencodeExport, OpencodeMessage } from "./types.js";
 
@@ -317,7 +316,7 @@ export const opencodeConverter = {
 
   parse(input: string, filePath?: string): ParsedOpencodePayload {
     return {
-      exportData: parseJson(input) as OpencodeExport,
+      exportData: JSON.parse(input) as OpencodeExport,
       ...(filePath !== undefined ? { filePath } : {}),
     };
   },
@@ -325,6 +324,8 @@ export const opencodeConverter = {
   normalize(payload: ParsedOpencodePayload): UnifiedSession {
     const data = payload.exportData;
     const items = data.messages.flatMap((message, index) => normalizeMessageItems(message, index));
+    const createdAt = normalizeTimestamp(data.info.time?.created);
+    const updatedAt = normalizeTimestamp(data.info.time?.updated);
 
     return {
       version: UNIFIED_SESSION_VERSION,
@@ -335,12 +336,8 @@ export const opencodeConverter = {
         ...(data.info.parentID !== undefined ? { parent_session_id: data.info.parentID } : {}),
         ...(data.info.title !== undefined ? { title: data.info.title } : {}),
         ...(data.info.directory !== undefined ? { cwd: data.info.directory } : {}),
-        ...(normalizeTimestamp(data.info.time?.created) !== null
-          ? { created_at: normalizeTimestamp(data.info.time?.created) }
-          : {}),
-        ...(normalizeTimestamp(data.info.time?.updated) !== null
-          ? { updated_at: normalizeTimestamp(data.info.time?.updated) }
-          : {}),
+        ...(createdAt !== null ? { created_at: createdAt } : {}),
+        ...(updatedAt !== null ? { updated_at: updatedAt } : {}),
         ...(data.info.version !== undefined ? { provider_version: data.info.version } : {}),
         metadata: {
           ...(data.info.slug !== undefined ? { slug: data.info.slug } : {}),
@@ -354,12 +351,6 @@ export const opencodeConverter = {
   },
 } as const;
 
-export function normalizeOpencodeExport(
-  exportData: OpencodeExport,
-  filePath?: string,
-): UnifiedSession {
-  return opencodeConverter.normalize({
-    exportData,
-    ...(filePath !== undefined ? { filePath } : {}),
-  });
+export function normalizeOpencodeExport(exportData: OpencodeExport): UnifiedSession {
+  return opencodeConverter.normalize({ exportData });
 }

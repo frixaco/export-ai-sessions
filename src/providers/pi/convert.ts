@@ -17,7 +17,15 @@ import { classifyItemKindFromBlocks } from "../shared/classify-item-kind.js";
 import { fallbackId } from "../shared/ids.js";
 import { parseJsonLines } from "../shared/jsonl.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
-import type { PiEntry } from "./types.js";
+
+interface PiEntry {
+  readonly type: string;
+  readonly id?: string;
+  readonly parentId?: string | null;
+  readonly timestamp?: string;
+  readonly message?: Record<string, unknown>;
+  readonly [key: string]: unknown;
+}
 
 interface ParsedPiPayload {
   readonly entries: PiEntry[];
@@ -136,7 +144,7 @@ function itemFromPiEntry(
   entry: PiEntry,
   index: number,
   parentId: string | null | undefined,
-): UnifiedSessionItem | null {
+): UnifiedSessionItem {
   const timestamp = normalizeTimestamp(entry.timestamp);
 
   if (entry.type === "compaction") {
@@ -250,6 +258,7 @@ export const piConverter = {
 
   normalize(payload: ParsedPiPayload): UnifiedSession {
     const header = payload.entries.find((entry) => entry.type === "session");
+    const createdAt = normalizeTimestamp(header?.timestamp);
     const exportableEntries = payload.entries.filter((entry) => exportableEntry(entry));
     const allEntriesById = new Map(
       payload.entries
@@ -259,11 +268,9 @@ export const piConverter = {
     const retainedIds = new Set(
       exportableEntries.map((entry) => entryId(entry)).filter((id): id is string => id !== null),
     );
-    const items = exportableEntries
-      .map((entry, index) =>
-        itemFromPiEntry(entry, index, resolveExportedParentId(entry, retainedIds, allEntriesById)),
-      )
-      .filter((item): item is UnifiedSessionItem => item !== null);
+    const items = exportableEntries.map((entry, index) =>
+      itemFromPiEntry(entry, index, resolveExportedParentId(entry, retainedIds, allEntriesById)),
+    );
 
     return {
       version: UNIFIED_SESSION_VERSION,
@@ -274,9 +281,7 @@ export const piConverter = {
       session: {
         id: typeof header?.id === "string" ? header.id : "pi-session",
         ...(typeof header?.cwd === "string" ? { cwd: header.cwd } : {}),
-        ...(normalizeTimestamp(header?.timestamp) !== null
-          ? { created_at: normalizeTimestamp(header?.timestamp) }
-          : {}),
+        ...(createdAt !== null ? { created_at: createdAt } : {}),
         ...(typeof header?.version === "number"
           ? { provider_version: String(header.version) }
           : {}),

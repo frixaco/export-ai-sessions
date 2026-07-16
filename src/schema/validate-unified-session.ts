@@ -1,5 +1,4 @@
 import type {
-  CompactionBlock,
   Metadata,
   UnifiedBlock,
   UnifiedSession,
@@ -34,7 +33,7 @@ function assertTimestamp(value: unknown, path: string) {
   }
 }
 
-function validateCompactionBlock(block: CompactionBlock, path: string) {
+function validateCompactionBlock(block: Record<string, unknown>, path: string) {
   assert(
     block.mode === undefined ||
       block.mode === null ||
@@ -122,7 +121,7 @@ function validateBlock(block: unknown, path: string): asserts block is UnifiedBl
       );
       break;
     case "compaction":
-      validateCompactionBlock(block as unknown as CompactionBlock, path);
+      validateCompactionBlock(block, path);
       break;
     case "raw":
       break;

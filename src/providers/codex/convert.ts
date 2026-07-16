@@ -17,7 +17,12 @@ import {
 import { fallbackId } from "../shared/ids.js";
 import { parseJsonLines } from "../shared/jsonl.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
-import type { CodexEntry } from "./types.js";
+
+interface CodexEntry {
+  readonly timestamp?: string;
+  readonly type: string;
+  readonly payload?: Record<string, unknown>;
+}
 
 interface ParsedCodexPayload {
   readonly entries: CodexEntry[];
@@ -254,7 +259,7 @@ function itemFromResponseItem(
   index: number,
   currentModel: string | null,
   toolNameByCallId: CodexToolNameByCallId,
-): UnifiedSessionItem | null {
+): UnifiedSessionItem {
   const payload = entry.payload ?? {};
   const baseId =
     (typeof payload.id === "string" ? payload.id : null) ??
@@ -406,7 +411,7 @@ function itemFromEventMessage(
   entry: CodexEntry,
   index: number,
   currentModel: string | null,
-): UnifiedSessionItem | null {
+): UnifiedSessionItem {
   const payload = entry.payload ?? {};
   const eventType = typeof payload.type === "string" ? payload.type : null;
   const timestamp = normalizeTimestamp(entry.timestamp);
@@ -551,11 +556,10 @@ export const codexConverter = {
         previousTurnContext = currentTurnContext;
 
         if (blocks.length > 0) {
+          const timestamp = normalizeTimestamp(entry.timestamp);
           items.push({
             id: fallbackId("codex-turn-context", index),
-            ...(normalizeTimestamp(entry.timestamp) !== null
-              ? { timestamp: normalizeTimestamp(entry.timestamp) }
-              : {}),
+            ...(timestamp !== null ? { timestamp } : {}),
             kind: "context",
             ...(currentModel !== null ? { model: currentModel } : {}),
             blocks,
@@ -566,11 +570,10 @@ export const codexConverter = {
       }
 
       if (entry.type === "session_meta") {
+        const timestamp = normalizeTimestamp(entry.timestamp);
         items.push({
           id: fallbackId("codex-session-meta", index),
-          ...(normalizeTimestamp(entry.timestamp) !== null
-            ? { timestamp: normalizeTimestamp(entry.timestamp) }
-            : {}),
+          ...(timestamp !== null ? { timestamp } : {}),
           kind: "meta",
           blocks: [rawBlock(entry.payload ?? {})],
           metadata: { raw: entry.payload ?? {} },
@@ -579,11 +582,10 @@ export const codexConverter = {
       }
 
       if (entry.type === "compacted") {
+        const timestamp = normalizeTimestamp(entry.timestamp);
         items.push({
           id: fallbackId("codex-compaction", index),
-          ...(normalizeTimestamp(entry.timestamp) !== null
-            ? { timestamp: normalizeTimestamp(entry.timestamp) }
-            : {}),
+          ...(timestamp !== null ? { timestamp } : {}),
           kind: "compaction",
           blocks: [
             compactionBlock({
@@ -600,10 +602,7 @@ export const codexConverter = {
       }
 
       if (entry.type === "response_item") {
-        const item = itemFromResponseItem(entry, index, currentModel, toolNameByCallId);
-        if (item !== null) {
-          items.push(item);
-        }
+        items.push(itemFromResponseItem(entry, index, currentModel, toolNameByCallId));
         continue;
       }
 
@@ -655,23 +654,25 @@ export const codexConverter = {
           }
         }
 
-        const item = itemFromEventMessage(entry, index, currentModel);
-        if (item !== null) {
-          items.push(item);
-        }
+        items.push(itemFromEventMessage(entry, index, currentModel));
         continue;
       }
 
+      const timestamp = normalizeTimestamp(entry.timestamp);
       items.push({
         id: fallbackId(`codex-${entry.type}`, index),
-        ...(normalizeTimestamp(entry.timestamp) !== null
-          ? { timestamp: normalizeTimestamp(entry.timestamp) }
-          : {}),
+        ...(timestamp !== null ? { timestamp } : {}),
         kind: "meta",
         blocks: [rawBlock(entry.payload ?? entry)],
         metadata: { raw: entry.payload ?? entry },
       });
     }
+
+    const createdAt = normalizeTimestamp(
+      typeof sessionMeta.timestamp === "string"
+        ? sessionMeta.timestamp
+        : sessionMetaEntry?.timestamp,
+    );
 
     return {
       version: UNIFIED_SESSION_VERSION,
@@ -682,19 +683,7 @@ export const codexConverter = {
       session: {
         id: typeof sessionMeta.id === "string" ? sessionMeta.id : "codex-session",
         ...(currentCwd !== null ? { cwd: currentCwd } : {}),
-        ...(normalizeTimestamp(
-          typeof sessionMeta.timestamp === "string"
-            ? sessionMeta.timestamp
-            : sessionMetaEntry?.timestamp,
-        ) !== null
-          ? {
-              created_at: normalizeTimestamp(
-                typeof sessionMeta.timestamp === "string"
-                  ? sessionMeta.timestamp
-                  : sessionMetaEntry?.timestamp,
-              ),
-            }
-          : {}),
+        ...(createdAt !== null ? { created_at: createdAt } : {}),
         ...(typeof sessionMeta.cli_version === "string"
           ? { provider_version: sessionMeta.cli_version }
           : {}),

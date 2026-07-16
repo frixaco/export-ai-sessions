@@ -1,6 +1,6 @@
 {
   "name": "@frixaco/shair",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "Convert local AI agent session exports into a unified JSON schema.",
   "keywords": [
     "agent",
@@ -24,10 +24,9 @@
     "url": "git+https://github.com/frixaco/export-ai-sessions.git"
   },
   "bin": {
-    "shair": "bin/shair.js"
+    "shair": "dist/cli/export-session.js"
   },
   "files": [
-    "bin",
     "dist",
     "README.md",
     "UNIFIED_SESSION_SHAPE.md",
@@ -47,11 +46,11 @@
     "access": "public"
   },
   "scripts": {
-    "build": "tsgo -p tsconfig.build.json",
+    "build": "node -e \"require('node:fs').rmSync('dist', { recursive: true, force: true })\" && tsgo -p tsconfig.build.json",
     "check": "pnpm lint && pnpm fmt-check && pnpm typecheck && pnpm test",
-    "export-session": "tsgo -p tsconfig.build.json && node dist/cli/export-session.js",
-    "prepare": "tsgo -p tsconfig.build.json",
-    "prepack": "tsgo -p tsconfig.build.json",
+    "export-session": "pnpm build && node dist/cli/export-session.js",
+    "prepare": "pnpm build",
+    "prepublishOnly": "pnpm check",
     "test": "vitest run",
     "typecheck": "tsgo --noEmit",
     "lint": "oxlint",

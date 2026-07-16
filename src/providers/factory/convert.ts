@@ -16,7 +16,16 @@ import { classifyItemKindFromBlocks } from "../shared/classify-item-kind.js";
 import { fallbackId } from "../shared/ids.js";
 import { parseJsonLines } from "../shared/jsonl.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
-import type { FactoryEntry } from "./types.js";
+
+interface FactoryEntry {
+  readonly type: string;
+  readonly id?: string;
+  readonly timestamp?: string;
+  readonly parentId?: string | null;
+  readonly compactionSummaryId?: string;
+  readonly message?: Record<string, unknown>;
+  readonly [key: string]: unknown;
+}
 
 interface ParsedFactoryPayload {
   readonly entries: FactoryEntry[];
@@ -134,7 +143,7 @@ function itemFromFactoryEntry(
   entry: FactoryEntry,
   index: number,
   toolNamesByCallId: ReadonlyMap<string, string>,
-): UnifiedSessionItem | null {
+): UnifiedSessionItem {
   const timestamp = normalizeTimestamp(entry.timestamp);
 
   if (entry.type === "compaction_state") {
@@ -204,8 +213,7 @@ export const factoryConverter = {
     const toolNamesByCallId = collectFactoryToolNames(payload.entries);
     const items = payload.entries
       .filter((entry) => entry.type !== "session_start")
-      .map((entry, index) => itemFromFactoryEntry(entry, index, toolNamesByCallId))
-      .filter((item): item is UnifiedSessionItem => item !== null);
+      .map((entry, index) => itemFromFactoryEntry(entry, index, toolNamesByCallId));
 
     return {
       version: UNIFIED_SESSION_VERSION,

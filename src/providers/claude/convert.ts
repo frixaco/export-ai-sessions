@@ -17,7 +17,18 @@ import { classifyItemKindFromBlocks } from "../shared/classify-item-kind.js";
 import { fallbackId } from "../shared/ids.js";
 import { parseJsonLines } from "../shared/jsonl.js";
 import { normalizeTimestamp } from "../shared/timestamps.js";
-import type { ClaudeEntry } from "./types.js";
+
+interface ClaudeEntry {
+  readonly type: string;
+  readonly timestamp?: string;
+  readonly uuid?: string;
+  readonly parentUuid?: string | null;
+  readonly sessionId?: string;
+  readonly cwd?: string;
+  readonly version?: string;
+  readonly message?: Record<string, unknown>;
+  readonly [key: string]: unknown;
+}
 
 interface ParsedClaudePayload {
   readonly entries: ClaudeEntry[];
@@ -372,9 +383,10 @@ export const claudeConverter = {
     const entriesWithSession = payload.entries.filter(
       (entry) => typeof entry.sessionId === "string",
     );
-    const firstTimestampedEntry = payload.entries.find(
-      (entry) => normalizeTimestamp(entry.timestamp) !== null,
-    );
+    const createdAt =
+      payload.entries
+        .map((entry) => normalizeTimestamp(entry.timestamp))
+        .find((timestamp) => timestamp !== null) ?? null;
     const sourceSchemaVersion =
       entriesWithSession.find((entry) => typeof entry.version === "string")?.version ?? null;
     const sessionId =
@@ -394,9 +406,7 @@ export const claudeConverter = {
       session: {
         id: sessionId ?? "claude-session",
         ...(cwd !== null ? { cwd } : {}),
-        ...(normalizeTimestamp(firstTimestampedEntry?.timestamp) !== null
-          ? { created_at: normalizeTimestamp(firstTimestampedEntry?.timestamp) }
-          : {}),
+        ...(createdAt !== null ? { created_at: createdAt } : {}),
         ...(sourceSchemaVersion !== null ? { provider_version: sourceSchemaVersion } : {}),
         metadata: gitBranch !== null ? { git_branch: gitBranch } : {},
       },

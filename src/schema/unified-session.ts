@@ -1,6 +1,8 @@
 export const UNIFIED_SESSION_VERSION = 1;
 
-export type UnifiedSource = "opencode" | "codex" | "pi" | "claude" | "factory";
+export const UNIFIED_SOURCES = ["opencode", "codex", "pi", "claude", "factory"] as const;
+
+export type UnifiedSource = (typeof UNIFIED_SOURCES)[number];
 
 export type Metadata = Record<string, unknown>;
 

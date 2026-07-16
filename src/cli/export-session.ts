@@ -1,13 +1,17 @@
 #!/usr/bin/env node
 
-import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 
 import { convertSessionFile } from "../core/convert-session.js";
 import { ConversionError } from "../core/errors.js";
-import type { UnifiedSession, UnifiedSource } from "../schema/unified-session.js";
+import {
+  UNIFIED_SOURCES,
+  type UnifiedSession,
+  type UnifiedSource,
+} from "../schema/unified-session.js";
 import {
   openOpencodeSqliteStore,
   resolveDefaultOpencodeDbPaths,
@@ -30,18 +34,11 @@ interface CliEnvironment {
   readonly stderr: Pick<NodeJS.WriteStream, "write">;
 }
 
-interface ExportResult {
-  readonly outputPath: string;
-  readonly sessionId: string;
-}
-
 interface CliInput {
   readonly kind: "file" | "opencode-session";
   readonly ref: string;
   readonly dbPath?: string;
 }
-
-const SUPPORTED_SOURCES = ["opencode", "codex", "pi", "claude", "factory"] as const;
 
 const DEFAULT_INPUT_DIR = "data";
 const DEFAULT_OUTPUT_DIR = "exported";
@@ -51,7 +48,7 @@ function usage(): string {
     "Usage: shair <source> [options]",
     "",
     "Sources:",
-    `  ${SUPPORTED_SOURCES.join(", ")}`,
+    `  ${UNIFIED_SOURCES.join(", ")}`,
     "",
     "Options:",
     "  --input <path>    Convert a specific file or scan a specific directory",
@@ -63,7 +60,7 @@ function usage(): string {
 }
 
 function isUnifiedSource(value: string): value is UnifiedSource {
-  return SUPPORTED_SOURCES.includes(value as UnifiedSource);
+  return UNIFIED_SOURCES.some((source) => source === value);
 }
 
 function isSessionFile(source: UnifiedSource, filePath: string): boolean {
@@ -296,10 +293,6 @@ function writeJson(path: string, value: UnifiedSession, pretty: boolean): void {
   writeFileSync(path, `${JSON.stringify(value, null, spacing)}\n`, "utf8");
 }
 
-function outputPathForSession(outDir: string, sessionId: string): string {
-  return resolve(outDir, `${sessionId}.json`);
-}
-
 function formatFailure(source: UnifiedSource, inputPath: string, error: unknown): string {
   const detail = error instanceof Error ? error.message : String(error);
   return `[${source}] Failed to convert ${inputPath}: ${detail}`;
@@ -323,10 +316,7 @@ function convertCliInput(
     throw new ConversionError(`OpenCode database was not opened for session: ${input.ref}`);
   }
 
-  return normalizeOpencodeExport(
-    opencodeStore.loadSessionExport(input.ref),
-    `sqlite:${opencodeStore.dbPath}:${input.ref}`,
-  );
+  return normalizeOpencodeExport(opencodeStore.loadSessionExport(input.ref));
 }
 
 async function openOpencodeStores(
@@ -416,7 +406,7 @@ export async function runExportSessionCli(
       options.outDir ?? `${DEFAULT_OUTPUT_DIR}/${options.source}`,
     );
     const writtenPaths = new Set<string>();
-    const successes: ExportResult[] = [];
+    let successCount = 0;
     const failures: string[] = [];
 
     try {
@@ -424,7 +414,7 @@ export async function runExportSessionCli(
         try {
           const session = convertCliInput(options.source, input, opencodeStoresByPath);
           mkdirSync(outDir, { recursive: true });
-          const outputPath = outputPathForSession(outDir, session.session.id);
+          const outputPath = resolve(outDir, `${session.session.id}.json`);
 
           if (writtenPaths.has(outputPath)) {
             throw new ConversionError(`Duplicate session id in this run: ${session.session.id}`);
@@ -432,10 +422,7 @@ export async function runExportSessionCli(
 
           writtenPaths.add(outputPath);
           writeJson(outputPath, session, options.pretty);
-          successes.push({
-            outputPath,
-            sessionId: session.session.id,
-          });
+          successCount += 1;
         } catch (error) {
           const failure = formatFailure(options.source, input.ref, error);
           failures.push(failure);
@@ -453,16 +440,16 @@ export async function runExportSessionCli(
     }
 
     if (failures.length > 0) {
-      if (successes.length > 0) {
+      if (successCount > 0) {
         environment.stderr.write(
-          `Converted ${successes.length} ${options.source} session${successes.length === 1 ? "" : "s"} before failure\n`,
+          `Converted ${successCount} ${options.source} session${successCount === 1 ? "" : "s"} before failure\n`,
         );
       }
       return 1;
     }
 
     environment.stdout.write(
-      `Exported ${successes.length} ${options.source} session${successes.length === 1 ? "" : "s"} to ${outDir}\n`,
+      `Exported ${successCount} ${options.source} session${successCount === 1 ? "" : "s"} to ${outDir}\n`,
     );
 
     return 0;
@@ -474,7 +461,8 @@ export async function runExportSessionCli(
 }
 
 const isMain =
-  process.argv[1] !== undefined && import.meta.url === pathToFileURL(process.argv[1]).href;
+  process.argv[1] !== undefined &&
+  import.meta.url === pathToFileURL(realpathSync(process.argv[1])).href;
 
 if (isMain) {
   process.exitCode = await runExportSessionCli(process.argv.slice(2));

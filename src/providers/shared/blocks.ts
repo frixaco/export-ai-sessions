@@ -2,7 +2,6 @@ import type {
   CompactionBlock,
   FileRefBlock,
   ImageBlock,
-  Metadata,
   PatchRefBlock,
   RawBlock,
   SearchBlock,
@@ -11,15 +10,10 @@ import type {
   ThinkingBlock,
   ToolCallBlock,
   ToolResultBlock,
-  UnifiedBlock,
 } from "../../schema/unified-session.js";
 
-export function metadata(raw?: Record<string, unknown>): Metadata {
-  return raw ?? {};
-}
-
 export function textBlock(text: string, raw?: Record<string, unknown>): TextBlock {
-  return { type: "text", text, metadata: metadata(raw) };
+  return { type: "text", text, metadata: blockMetadata(raw) };
 }
 
 export function thinkingBlock(
@@ -31,7 +25,7 @@ export function thinkingBlock(
     type: "thinking",
     text,
     ...(signature !== undefined ? { signature } : {}),
-    metadata: metadata(raw),
+    metadata: blockMetadata(raw),
   };
 }
 
@@ -48,7 +42,7 @@ export function imageBlock(options: {
     ...(options.mime !== undefined ? { mime: options.mime } : {}),
     ...(options.alt !== undefined ? { alt: options.alt } : {}),
     ...(options.data !== undefined ? { data: options.data } : {}),
-    metadata: metadata(options.metadata),
+    metadata: blockMetadata(options.metadata),
   };
 }
 
@@ -65,7 +59,7 @@ export function fileRefBlock(options: {
     ...(options.url !== undefined ? { url: options.url } : {}),
     ...(options.mime !== undefined ? { mime: options.mime } : {}),
     ...(options.label !== undefined ? { label: options.label } : {}),
-    metadata: metadata(options.metadata),
+    metadata: blockMetadata(options.metadata),
   };
 }
 
@@ -78,7 +72,7 @@ export function patchRefBlock(
     type: "patch_ref",
     ...(hash !== undefined ? { hash } : {}),
     files,
-    metadata: metadata(raw),
+    metadata: blockMetadata(raw),
   };
 }
 
@@ -93,7 +87,7 @@ export function toolCallBlock(options: {
     ...(options.call_id !== undefined ? { call_id: options.call_id } : {}),
     ...(options.tool_name !== undefined ? { tool_name: options.tool_name } : {}),
     arguments: options.arguments,
-    metadata: metadata(options.metadata),
+    metadata: blockMetadata(options.metadata),
   };
 }
 
@@ -110,7 +104,7 @@ export function toolResultBlock(options: {
     ...(options.tool_name !== undefined ? { tool_name: options.tool_name } : {}),
     is_error: options.is_error,
     ...(options.content !== undefined ? { content: options.content } : {}),
-    metadata: metadata(options.metadata),
+    metadata: blockMetadata(options.metadata),
   };
 }
 
@@ -125,7 +119,7 @@ export function searchBlock(options: {
     ...(options.query !== undefined ? { query: options.query } : {}),
     ...(options.status !== undefined ? { status: options.status } : {}),
     ...(options.provider !== undefined ? { provider: options.provider } : {}),
-    metadata: metadata(options.metadata),
+    metadata: blockMetadata(options.metadata),
   };
 }
 
@@ -138,7 +132,7 @@ export function stepBlock(
     type: "step",
     name,
     ...(status !== undefined ? { status } : {}),
-    metadata: metadata(raw),
+    metadata: blockMetadata(raw),
   };
 }
 
@@ -161,7 +155,7 @@ export function compactionBlock(options: {
     ...(options.replacement_items !== undefined
       ? { replacement_items: options.replacement_items }
       : {}),
-    metadata: metadata(options.metadata),
+    metadata: blockMetadata(options.metadata),
   };
 }
 
@@ -169,10 +163,10 @@ export function rawBlock(raw: unknown, extra?: Record<string, unknown>): RawBloc
   return {
     type: "raw",
     raw,
-    metadata: metadata(extra),
+    metadata: blockMetadata(extra),
   };
 }
 
-export function compactBlocks(blocks: Array<UnifiedBlock | null>): UnifiedBlock[] {
-  return blocks.filter((block): block is UnifiedBlock => block !== null);
+function blockMetadata(raw?: Record<string, unknown>): Record<string, unknown> {
+  return raw ?? {};
 }

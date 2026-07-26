@@ -21,6 +21,7 @@ import { normalizeOpencodeExport } from "../providers/opencode/convert.js";
 
 interface CliOptions {
   readonly source: UnifiedSource;
+  readonly sessionId?: string;
   readonly inputPath?: string;
   readonly outDir?: string;
   readonly pretty: boolean;
@@ -45,10 +46,13 @@ const DEFAULT_OUTPUT_DIR = "exported";
 
 function usage(): string {
   return [
-    "Usage: shair <source> [options]",
+    "Usage: shair <source> [session-id] [options]",
     "",
     "Sources:",
     `  ${UNIFIED_SOURCES.join(", ")}`,
+    "",
+    "Arguments:",
+    "  session-id        Export only the session with this ID",
     "",
     "Options:",
     "  --input <path>    Convert a specific file or scan a specific directory",
@@ -118,6 +122,7 @@ function listSessionFiles(
 
 function parseArgs(argv: string[]): CliOptions {
   let source: UnifiedSource | null = null;
+  let sessionId: string | undefined;
   let inputPath: string | undefined;
   let outDir: string | undefined;
   let pretty = false;
@@ -168,6 +173,11 @@ function parseArgs(argv: string[]): CliOptions {
       continue;
     }
 
+    if (sessionId === undefined) {
+      sessionId = argument;
+      continue;
+    }
+
     throw new ConversionError(`Unexpected argument: ${argument}`);
   }
 
@@ -177,6 +187,7 @@ function parseArgs(argv: string[]): CliOptions {
 
   return {
     source,
+    ...(sessionId !== undefined ? { sessionId } : {}),
     ...(inputPath !== undefined ? { inputPath } : {}),
     ...(outDir !== undefined ? { outDir } : {}),
     pretty,
@@ -333,14 +344,21 @@ async function openOpencodeStores(
   return stores;
 }
 
-function listOpencodeSessionInputs(stores: ReadonlyMap<string, OpenCodeSqliteStore>): CliInput[] {
+function listOpencodeSessionInputs(
+  stores: ReadonlyMap<string, OpenCodeSqliteStore>,
+  sessionId?: string,
+): CliInput[] {
   const inputs: CliInput[] = [];
 
   for (const [dbPath, store] of stores.entries()) {
-    for (const sessionId of store.listSessionIds()) {
+    for (const listedSessionId of store.listSessionIds()) {
+      if (sessionId !== undefined && listedSessionId !== sessionId) {
+        continue;
+      }
+
       inputs.push({
         kind: "opencode-session",
-        ref: sessionId,
+        ref: listedSessionId,
         dbPath,
       });
     }
@@ -397,7 +415,10 @@ export async function runExportSessionCli(
       if (opencodeDbPaths.length > 0) {
         opencodeStoresByPath = await openOpencodeStores(opencodeDbPaths);
         const fileInputs = inputs.filter((input) => input.kind === "file");
-        inputs = [...fileInputs, ...listOpencodeSessionInputs(opencodeStoresByPath)];
+        inputs = [
+          ...fileInputs,
+          ...listOpencodeSessionInputs(opencodeStoresByPath, options.sessionId),
+        ];
       }
     }
 
@@ -406,13 +427,22 @@ export async function runExportSessionCli(
       options.outDir ?? `${DEFAULT_OUTPUT_DIR}/${options.source}`,
     );
     const writtenPaths = new Set<string>();
+    const matchingSessions: UnifiedSession[] = [];
     let successCount = 0;
-    const failures: string[] = [];
+    let failureCount = 0;
 
     try {
       for (const input of inputs) {
         try {
           const session = convertCliInput(options.source, input, opencodeStoresByPath);
+
+          if (options.sessionId !== undefined) {
+            if (session.session.id === options.sessionId) {
+              matchingSessions.push(session);
+            }
+            continue;
+          }
+
           mkdirSync(outDir, { recursive: true });
           const outputPath = resolve(outDir, `${session.session.id}.json`);
 
@@ -424,13 +454,34 @@ export async function runExportSessionCli(
           writeJson(outputPath, session, options.pretty);
           successCount += 1;
         } catch (error) {
+          if (options.sessionId !== undefined && !options.failFast) {
+            continue;
+          }
+
           const failure = formatFailure(options.source, input.ref, error);
-          failures.push(failure);
+          failureCount += 1;
           environment.stderr.write(`${failure}\n`);
 
           if (options.failFast) {
             break;
           }
+        }
+      }
+
+      if (options.sessionId !== undefined) {
+        if (matchingSessions.length === 0) {
+          const failure = `No ${options.source} session found with id: ${options.sessionId}`;
+          failureCount += 1;
+          environment.stderr.write(`${failure}\n`);
+        } else if (matchingSessions.length > 1) {
+          const failure = `Duplicate ${options.source} session id found: ${options.sessionId}`;
+          failureCount += 1;
+          environment.stderr.write(`${failure}\n`);
+        } else {
+          const session = matchingSessions[0]!;
+          mkdirSync(outDir, { recursive: true });
+          writeJson(resolve(outDir, `${session.session.id}.json`), session, options.pretty);
+          successCount = 1;
         }
       }
     } finally {
@@ -439,7 +490,7 @@ export async function runExportSessionCli(
       }
     }
 
-    if (failures.length > 0) {
+    if (failureCount > 0) {
       if (successCount > 0) {
         environment.stderr.write(
           `Converted ${successCount} ${options.source} session${successCount === 1 ? "" : "s"} before failure\n`,

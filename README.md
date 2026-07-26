@@ -45,6 +45,12 @@ npx @frixaco/shair pi
 npx @frixaco/shair factory
 ```
 
+Export one session by its provider and session ID:
+
+```sh
+npx @frixaco/shair codex 019f9f8e-2583-7772-aa27-b0842aec620b
+```
+
 Default behavior:
 
 - reads from the provider's real local session storage first:
@@ -114,7 +120,7 @@ pnpm pack
 tmpdir="$(mktemp -d)"
 cd "$tmpdir"
 npm init -y
-npm install /path/to/frixaco-shair-1.2.1.tgz
+npm install /path/to/frixaco-shair-1.2.2.tgz
 npx @frixaco/shair --help
 ```
 

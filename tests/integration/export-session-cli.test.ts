@@ -196,6 +196,64 @@ describe("export-session CLI", () => {
     });
   });
 
+  it.each([
+    ["codex", "codex_fixture", "tests/fixtures/codex/source.jsonl"],
+    ["claude", "claude_fixture_v3", "tests/fixtures/claude/source.jsonl"],
+    ["factory", "factory_fixture", "tests/fixtures/factory/source.jsonl"],
+    ["pi", "pi_fixture", "tests/fixtures/pi/source.jsonl"],
+  ])("selects a requested %s session from an explicit file", async (source, sessionId, fixture) => {
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+    const root = process.cwd();
+    const outputRoot = tempDir();
+    const homeDir = tempDir();
+
+    const exitCode = await runExportSessionCli(
+      [source, sessionId, "--input", resolve(root, fixture), "--out-dir", outputRoot],
+      { cwd: root, homeDir, stdout, stderr },
+    );
+
+    expect(exitCode).toBe(0);
+    expect(stderr.text()).toBe("");
+    expect(stdout.text()).toContain(`Exported 1 ${source} session`);
+    expect(existsSync(resolve(outputRoot, `${sessionId}.json`))).toBe(true);
+  });
+
+  it("exports the requested Codex session despite unrelated runtime files", async () => {
+    const root = process.cwd();
+    const workspace = tempDir();
+    const homeDir = tempDir();
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+    const runtimeDir = resolve(homeDir, ".codex", "sessions", "2026", "07", "27");
+
+    mkdirSync(runtimeDir, { recursive: true });
+    copyFileSync(
+      resolve(root, "tests/fixtures/codex/source.jsonl"),
+      resolve(runtimeDir, "rollout-first.jsonl"),
+    );
+    copyFileSync(
+      resolve(root, "tests/fixtures/codex/source.duplicates.jsonl"),
+      resolve(runtimeDir, "rollout-second.jsonl"),
+    );
+    writeFileSync(resolve(runtimeDir, "rollout-invalid.jsonl"), "not-json\n", "utf8");
+
+    const exitCode = await runExportSessionCli(["codex", "codex_fixture"], {
+      cwd: workspace,
+      homeDir,
+      stdout,
+      stderr,
+    });
+
+    expect(exitCode).toBe(0);
+    expect(stderr.text()).toBe("");
+    expect(stdout.text()).toContain("Exported 1 codex session");
+    expect(existsSync(resolve(workspace, "exported", "codex", "codex_fixture.json"))).toBe(true);
+    expect(
+      existsSync(resolve(workspace, "exported", "codex", "codex_duplicate_fixture.json")),
+    ).toBe(false);
+  });
+
   it("scans the default data/<source> directory and skips factory settings files", async () => {
     const cwd = tempDir();
     const homeDir = tempDir();
@@ -305,7 +363,7 @@ describe("export-session CLI", () => {
     });
   });
 
-  it("uses the runtime OpenCode SQLite database and exports every session", async () => {
+  it("exports only the requested session from the runtime OpenCode database", async () => {
     const workspace = tempDir();
     const homeDir = tempDir();
     const stdout = memoryWriter();
@@ -381,7 +439,7 @@ describe("export-session CLI", () => {
       ],
     });
 
-    const exitCode = await runExportSessionCli(["opencode"], {
+    const exitCode = await runExportSessionCli(["opencode", "ses_fixture_b"], {
       cwd: workspace,
       homeDir,
       stdout,
@@ -393,13 +451,9 @@ describe("export-session CLI", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr.text()).toBe("");
-    expect(stdout.text()).toContain("Exported 2 opencode sessions");
-    expect(existsSync(outputA)).toBe(true);
+    expect(stdout.text()).toContain("Exported 1 opencode session");
+    expect(existsSync(outputA)).toBe(false);
     expect(existsSync(outputB)).toBe(true);
-    expect(JSON.parse(readFileSync(outputA, "utf8"))).toMatchObject({
-      source: "opencode",
-      session: { id: "ses_fixture_a" },
-    });
     expect(JSON.parse(readFileSync(outputB, "utf8"))).toMatchObject({
       source: "opencode",
       session: { id: "ses_fixture_b" },
@@ -646,6 +700,68 @@ describe("export-session CLI", () => {
     expect(stderr.text()).toContain("Unsupported source: unknown-source");
   });
 
+  it("returns a clear error without creating output when the session ID is unknown", async () => {
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+    const root = process.cwd();
+    const outputRoot = resolve(tempDir(), "exports");
+
+    const exitCode = await runExportSessionCli(
+      [
+        "codex",
+        "missing-session",
+        "--input",
+        resolve(root, "tests/fixtures/codex/source.jsonl"),
+        "--out-dir",
+        outputRoot,
+      ],
+      { cwd: root, homeDir: tempDir(), stdout, stderr },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(stdout.text()).toBe("");
+    expect(stderr.text()).toContain("No codex session found with id: missing-session");
+    expect(existsSync(outputRoot)).toBe(false);
+  });
+
+  it("rejects duplicate matching session IDs before writing output", async () => {
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+    const root = process.cwd();
+    const inputRoot = tempDir();
+    const outputRoot = resolve(tempDir(), "exports");
+    const fixturePath = resolve(root, "tests/fixtures/codex/source.jsonl");
+
+    copyFileSync(fixturePath, resolve(inputRoot, "first.jsonl"));
+    copyFileSync(fixturePath, resolve(inputRoot, "second.jsonl"));
+
+    const exitCode = await runExportSessionCli(
+      ["codex", "codex_fixture", "--input", inputRoot, "--out-dir", outputRoot],
+      { cwd: root, homeDir: tempDir(), stdout, stderr },
+    );
+
+    expect(exitCode).toBe(1);
+    expect(stdout.text()).toBe("");
+    expect(stderr.text()).toContain("Duplicate codex session id found: codex_fixture");
+    expect(existsSync(outputRoot)).toBe(false);
+  });
+
+  it("rejects positional arguments after the source and session ID", async () => {
+    const stdout = memoryWriter();
+    const stderr = memoryWriter();
+
+    const exitCode = await runExportSessionCli(["codex", "session-id", "extra"], {
+      cwd: process.cwd(),
+      homeDir: tempDir(),
+      stdout,
+      stderr,
+    });
+
+    expect(exitCode).toBe(1);
+    expect(stdout.text()).toBe("");
+    expect(stderr.text()).toContain("Unexpected argument: extra");
+  });
+
   it("writes help text to stdout", async () => {
     const stdout = memoryWriter();
     const stderr = memoryWriter();
@@ -660,6 +776,6 @@ describe("export-session CLI", () => {
 
     expect(exitCode).toBe(0);
     expect(stderr.text()).toBe("");
-    expect(stdout.text()).toContain("Usage: shair <source> [options]");
+    expect(stdout.text()).toContain("Usage: shair <source> [session-id] [options]");
   });
 });

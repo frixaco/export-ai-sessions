@@ -120,9 +120,41 @@ pnpm pack
 tmpdir="$(mktemp -d)"
 cd "$tmpdir"
 npm init -y
-npm install /path/to/frixaco-shair-1.2.2.tgz
+npm install /path/to/frixaco-shair-X.Y.Z.tgz
 npx @frixaco/shair --help
 ```
+
+## Releasing
+
+Publishing uses npm trusted publishing through `.github/workflows/release.yml`. The workflow does not use an `NPM_TOKEN` secret.
+
+1. Check the current npm version and choose a higher `X.Y.Z`:
+
+   ```sh
+   npm view @frixaco/shair version
+   ```
+
+2. Update `version` in `package.json`.
+3. Verify the package:
+
+   ```sh
+   pnpm install --frozen-lockfile
+   pnpm check
+   npm pack --dry-run
+   ```
+
+4. Commit the version, create a matching tag, and push both with Jujutsu:
+
+   ```sh
+   jj commit -m "Release X.Y.Z"
+   jj bookmark set main -r @-
+   jj tag set vX.Y.Z -r @-
+   jj git push --bookmark main --tag vX.Y.Z
+   ```
+
+The tag must point to the commit containing version `X.Y.Z`. A tag push runs the release workflow. npm rejects a version that already exists.
+
+The npm package must trust GitHub Actions for repository `frixaco/export-ai-sessions`, workflow `release.yml`, with `npm publish` permission.
 
 ## Repo Notes
 
